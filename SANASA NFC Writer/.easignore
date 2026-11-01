@@ -1,0 +1,3 @@
+# Ignore local prebuilt native folders so EAS Build uses fresh cloud prebuild
+android/
+ios/
