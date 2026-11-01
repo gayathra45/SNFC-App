@@ -100,21 +100,23 @@ export default function NfcWriterScreen() {
       return;
     }
 
-    if (!nfcStatus.supported) {
-      Alert.alert("Hardware Unsupported", "This device does not have NFC hardware.");
-      return;
-    }
+    if (!nfcStatus.isExpoGo) {
+      if (!nfcStatus.supported) {
+        Alert.alert("Hardware Unsupported", "This device does not have NFC hardware.");
+        return;
+      }
 
-    if (!nfcStatus.enabled) {
-      Alert.alert(
-        "NFC is Disabled",
-        "Please enable NFC in your system settings to continue.",
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Open Settings", onPress: () => nfcService.openSystemNfcSettings() }
-        ]
-      );
-      return;
+      if (!nfcStatus.enabled) {
+        Alert.alert(
+          "NFC is Disabled",
+          "Please enable NFC in your system settings to continue.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Open Settings", onPress: () => nfcService.openSystemNfcSettings() }
+          ]
+        );
+        return;
+      }
     }
 
     // Step 1: Waiting for Tag
@@ -193,7 +195,17 @@ export default function NfcWriterScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* NFC Hardware Status Banner */}
-      {!nfcStatus.supported ? (
+      {nfcStatus.isExpoGo ? (
+        <View style={styles.hardwareBannerInfo}>
+          <MaterialCommunityIcons name="cellphone-nfc" size={22} color="#0284C7" />
+          <View style={styles.hardwareBannerTextWrap}>
+            <Text style={styles.bannerTitleInfo}>Expo Go • Simulation Mode Active</Text>
+            <Text style={styles.bannerDescInfo}>
+              Your phone has NFC, but Expo Go cannot load native drivers. Simulation Mode is enabled so you can test end-to-end writing & backend sync!
+            </Text>
+          </View>
+        </View>
+      ) : !nfcStatus.supported ? (
         <View style={styles.hardwareBannerError}>
           <MaterialCommunityIcons name="nfc-search-variant" size={22} color="#DC2626" />
           <View style={styles.hardwareBannerTextWrap}>
@@ -311,13 +323,19 @@ export default function NfcWriterScreen() {
             <TouchableOpacity
               style={[
                 styles.primaryBtn,
-                (!cardId || !nfcStatus.enabled) && styles.btnDisabled
+                (!cardId || (!nfcStatus.enabled && !nfcStatus.isExpoGo)) && styles.btnDisabled
               ]}
               onPress={handleStartWrite}
-              disabled={!cardId || !nfcStatus.enabled}
+              disabled={!cardId || (!nfcStatus.enabled && !nfcStatus.isExpoGo)}
             >
-              <MaterialCommunityIcons name="nfc" size={20} color="#FFFFFF" />
-              <Text style={styles.primaryBtnText}>Confirm & Start NFC Write</Text>
+              <MaterialCommunityIcons
+                name={nfcStatus.isExpoGo ? "play-circle-outline" : "nfc"}
+                size={20}
+                color="#FFFFFF"
+              />
+              <Text style={styles.primaryBtnText}>
+                {nfcStatus.isExpoGo ? "Simulate & Verify NFC Write" : "Confirm & Start NFC Write"}
+              </Text>
             </TouchableOpacity>
           ) : step === "WAITING_FOR_TAG" || step === "WRITING_TAG" || step === "VERIFYING_READBACK" ? (
             <View style={styles.inProgressContainer}>
@@ -458,6 +476,26 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 11,
     fontWeight: "700"
+  },
+  hardwareBannerInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F0F9FF",
+    borderWidth: 1,
+    borderColor: "#BAE6FD",
+    borderRadius: 12,
+    padding: 12,
+    gap: 10,
+    marginBottom: 16
+  },
+  bannerTitleInfo: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#0369A1"
+  },
+  bannerDescInfo: {
+    fontSize: 10,
+    color: "#0284C7"
   },
   hardwareBannerError: {
     flexDirection: "row",

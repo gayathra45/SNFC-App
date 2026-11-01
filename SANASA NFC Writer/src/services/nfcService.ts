@@ -1,10 +1,15 @@
 import NfcManager, { NfcTech, Ndef } from "react-native-nfc-manager";
 import { Platform } from "react-native";
 import * as Haptics from "expo-haptics";
+import Constants, { ExecutionEnvironment } from "expo-constants";
+
+export const isRunningInExpoGo =
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 export interface NfcDiagnosticStatus {
   supported: boolean;
   enabled: boolean;
+  isExpoGo?: boolean;
   message: string;
 }
 
@@ -28,6 +33,9 @@ class NfcService {
   private initialized = false;
 
   async init(): Promise<boolean> {
+    if (isRunningInExpoGo) {
+      return true;
+    }
     if (this.initialized) return true;
     try {
       const isSupported = await NfcManager.isSupported();
@@ -44,12 +52,22 @@ class NfcService {
   }
 
   async checkDiagnosticStatus(): Promise<NfcDiagnosticStatus> {
+    if (isRunningInExpoGo) {
+      return {
+        supported: true,
+        enabled: true,
+        isExpoGo: true,
+        message: "Running in Expo Go. Test/Simulation mode is active. Standalone APK or dev build required for physical tag writing."
+      };
+    }
+
     try {
       const supported = await NfcManager.isSupported();
       if (!supported) {
         return {
           supported: false,
           enabled: false,
+          isExpoGo: false,
           message: "NFC hardware is not available on this device."
         };
       }
@@ -59,6 +77,7 @@ class NfcService {
         return {
           supported: true,
           enabled: false,
+          isExpoGo: false,
           message: "NFC is turned OFF in system settings. Please enable NFC to write physical cards."
         };
       }
@@ -142,6 +161,33 @@ class NfcService {
     }
 
     const cleanUrl = targetUrl.trim();
+
+    // In Expo Go, native NFC hardware drivers cannot be loaded.
+    // Provide a high-fidelity simulation so staff can test the end-to-end workflow immediately.
+    if (isRunningInExpoGo) {
+      await new Promise((r) => setTimeout(r, 1200));
+      try {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      } catch {}
+
+      await new Promise((r) => setTimeout(r, 800));
+
+      const randomBytes = Array.from({ length: 7 }, () =>
+        Math.floor(Math.random() * 256).toString(16).padStart(2, "0").toUpperCase()
+      ).join(":");
+
+      try {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch {}
+
+      return {
+        success: true,
+        tagUid: randomBytes,
+        tagTech: "NDEF (Expo Go Simulation)",
+        readBackUrl: cleanUrl,
+        readBackVerified: true
+      };
+    }
 
     try {
       await this.init();
