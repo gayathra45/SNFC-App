@@ -12,12 +12,14 @@ import {
   Easing,
   Modal,
   Switch,
+  TextInput,
   Dimensions
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
+import * as Clipboard from "expo-clipboard";
 import { WebView } from "react-native-webview";
 import {
   nfcService,
@@ -35,12 +37,19 @@ import {
   StaffUser
 } from "../../src/services/storageService";
 import { socketService } from "../../src/services/socketService";
+import { notificationService } from "../../src/services/notificationService";
+import {
+  t,
+  getCurrentLanguage,
+  onLanguageChange
+} from "../../src/services/i18nService";
 
 type WriteStep =
   | "IDLE"
   | "READY_TO_WRITE"
   | "WAITING_FOR_TAG"
   | "CHECKING_CAPABILITIES"
+  | "READY_TO_CONFIRM"
   | "WRITING_TAG"
   | "VERIFYING_READBACK"
   | "VERIFYING_BACKEND"
@@ -62,17 +71,105 @@ const INITIAL_CHECKLIST: ChecklistItem[] = [
   { id: 1, label: "NFC card detected", status: "Pending" },
   { id: 2, label: "Card capabilities identified", status: "Pending" },
   { id: 3, label: "Card is writable and URL fits", status: "Pending" },
-  { id: 4, label: "URL written successfully", status: "Pending" },
+  { id: 4, label: "Physical NFC write completed", status: "Pending" },
   { id: 5, label: "Read-back URL matches expected URL", status: "Pending" },
-  { id: 6, label: "Backend token exists and is active", status: "Pending" },
+  { id: 6, label: "Backend token exists & active", status: "Pending" },
   { id: 7, label: "Token is not revoked or expired", status: "Pending" },
-  { id: 8, label: "Vehicle assignment & permissions valid", status: "Pending" },
-  { id: 9, label: "In-app preview loaded correct page", status: "Pending" },
-  { id: 10, label: "Backend final acknowledgement received", status: "Pending" },
+  { id: 8, label: "Vehicle assignment valid", status: "Pending" },
+  { id: 9, label: "In-app preview loaded", status: "Pending" },
+  { id: 10, label: "Backend acknowledgement received", status: "Pending" },
   { id: 11, label: "Security audit trail updated", status: "Pending" }
 ];
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
+
+interface SettingHelpInfo {
+  title: string;
+  description: string;
+  risks: string;
+  compatibility: string;
+}
+
+const SETTING_HELP_TEXTS: Record<string, Record<string, SettingHelpInfo>> = {
+  en: {
+    readBack: {
+      title: "Read-Back Verification",
+      description: "Immediately reads the written NDEF URI from the card chip and performs a strict byte-for-byte comparison against the intended URL.",
+      risks: "Guarantees that partial writes, antenna disconnection, or radio interference are detected before the card leaves the office.",
+      compatibility: "Fully supported on all NDEF-formatted tags (NTAG213, NTAG215, NTAG216)."
+    },
+    overwrite: {
+      title: "Allow Overwrite",
+      description: "Permits writing onto NFC cards that already contain existing NDEF records or previous URLs.",
+      risks: "If enabled, existing records on the card will be replaced. Keep OFF if provisioning brand-new factory cards.",
+      compatibility: "Supported on any rewritable, unlocked NFC chip."
+    },
+    permanentLock: {
+      title: "Permanent Chip Lock",
+      description: "Applies permanent lock bits on the NFC tag after writing, freezing memory into irreversible read-only state.",
+      risks: "CRITICAL: Irreversible. Once locked, the card can NEVER be rewritten or reissued. Requires explicit confirmation.",
+      compatibility: "Supported on NXP NTAG series with hardware lock bit registers."
+    },
+    passwordProtect: {
+      title: "Password-Protected Writing",
+      description: "Sets a 32-bit access password on the tag memory so only authorized SANASA writers can reconfigure the card.",
+      risks: "Provides tamper protection without making the chip permanently read-only.",
+      compatibility: "Supported on NTAG213, NTAG215, NTAG216 chips."
+    }
+  },
+  si: {
+    readBack: {
+      title: "කියවා තහවුරු කිරීම (Read-Back)",
+      description: "කාඩ්පතට දත්ත ලිවීමෙන් පසු, චිපයේ ඇති URL ලිපිනය නැවත කියවා එය මුල් URL එකට හරියටම සමාන දැයි පරීක්ෂා කරයි.",
+      risks: "කාඩ්පත නියමිත වේලාවට පෙර දුරකථනයෙන් ඉවත් කිරීම නිසා සිදුවන දෝෂ වළක්වයි.",
+      compatibility: "සියලුම NDEF (NTAG213/215/216) කාඩ්පත් සඳහා වලංගුයි."
+    },
+    overwrite: {
+      title: "නැවත ලිවීමට ඉඩ දෙන්න (Overwrite)",
+      description: "දැනටමත් දත්ත පවතින කාඩ්පත් මත අලුතින් දත්ත ලිවීමට අවසර ලබාදෙයි.",
+      risks: "සක්‍රිය කළහොත් කාඩ්පතේ ඇති පැරණි දත්ත මැකී යනු ඇත.",
+      compatibility: "අගුළු දමා නොමැති ඕනෑම කාඩ්පතක් සඳහා වලංගුයි."
+    },
+    permanentLock: {
+      title: "ස්ථිර අගුල (Permanent Lock)",
+      description: "කාඩ්පත ස්ථිරවම කියවීමට පමණක් හැකි වන සේ අගුළු දමයි.",
+      risks: "අවවාදයයි: මෙය කිසිදා ආපසු හැරවිය නොහැක. කාඩ්පත නැවත කිසිදා ලිවිය නොහැක.",
+      compatibility: "NTAG චිප සඳහා සහය දක්වයි."
+    },
+    passwordProtect: {
+      title: "මුරපද ආරක්ෂාව",
+      description: "කාඩ්පතේ මතකය ආරක්ෂා කිරීම සඳහා මුරපදයක් ඇතුළත් කිරීම.",
+      risks: "අනවසර වෙනස්කම් වළක්වයි.",
+      compatibility: "NTAG213/215/216 සඳහා සහය දක්වයි."
+    }
+  },
+  ta: {
+    readBack: {
+      title: "மீண்டும் படித்து சரிபார்த்தல்",
+      description: "அட்டையில் எழுதிய பிறகு, அட்டைத் தரவை மீண்டும் படித்து துல்லியமாக பொருந்துகிறதா என்பதை சரிபார்க்கிறது.",
+      risks: "எழுதும் போது ஏற்படும் பிழைகளைக் கண்டறிய உதவுகிறது.",
+      compatibility: "அனைத்து NDEF அட்டைகளுக்கும் பொருந்தும்."
+    },
+    overwrite: {
+      title: "மேலெழுத அனுமதிக்கவும்",
+      description: "ஏற்கனவே தரவு உள்ள அட்டைகளில் புதிய தரவை எழுத அனுமதிக்கிறது.",
+      risks: "பழைய தரவு மாற்றப்படும்.",
+      compatibility: "பூட்டப்படாத அட்டைகளுக்கு பொருந்தும்."
+    },
+    permanentLock: {
+      title: "நிரந்தர பூட்டு",
+      description: "அட்டையை நிரந்தரமாக படிக்க மட்டும் மாற்றுகிறது.",
+      risks: "எச்சரிக்கை: இதை ஒருபோதும் மாற்ற முடியாது.",
+      compatibility: "NTAG அட்டைகளில் ஆதரிக்கப்படுகிறது."
+    },
+    passwordProtect: {
+      title: "கடவுச்சொல் பாதுகாப்பு",
+      description: "அட்டை நினைவகத்திற்கு கடவுச்சொல் அமைக்கிறது.",
+      risks: "அங்கீகரிக்கப்படாத மாற்றங்களைத் தடுக்கிறது.",
+      compatibility: "NTAG213/215/216 இல் ஆதரிக்கப்படுகிறது."
+    }
+  }
+};
 
 export default function NfcWriterScreen() {
   const router = useRouter();
@@ -84,6 +181,13 @@ export default function NfcWriterScreen() {
     enabled: true,
     message: "Checking NFC hardware..."
   });
+
+  // Mode Selection: "website" vs "manual"
+  const [inputMode, setInputMode] = useState<"website" | "manual">("website");
+  const [manualUrlInput, setManualUrlInput] = useState<string>("");
+  const [manualUrlError, setManualUrlError] = useState<string>("");
+  const [manualUrlValidated, setManualUrlValidated] = useState<boolean>(false);
+  const [isSanasaManaged, setIsSanasaManaged] = useState<boolean>(false);
 
   // Current Card Data
   const [cardId, setCardId] = useState<string>("");
@@ -102,13 +206,19 @@ export default function NfcWriterScreen() {
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [syncStatusText, setSyncStatusText] = useState<string>("");
 
+  // SEPARATE STATE TRACKERS FOR PHYSICAL WRITE VS BACKEND CHECK (Section 12 Fix)
+  const [isPhysicalWritten, setIsPhysicalWritten] = useState(false);
+  const [isReadBackVerified, setIsReadBackVerified] = useState(false);
+  const [isBackendVerified, setIsBackendVerified] = useState(false);
+  const [writeLocked, setWriteLocked] = useState(false); // Prevents duplicate writes
+
   // Tag Capabilities
   const [detectedCap, setDetectedCap] = useState<DetectedTagInfo | null>(null);
   const [capChecking, setCapChecking] = useState(false);
 
   // Per-Card NFC Settings
   const [strictReadBack, setStrictReadBack] = useState(true);
-  const [allowOverwrite, setAllowOverwrite] = useState(true);
+  const [allowOverwrite, setAllowOverwrite] = useState(false);
   const [permanentLock, setPermanentLock] = useState(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState(true);
 
@@ -117,17 +227,28 @@ export default function NfcWriterScreen() {
   const [backendVerification, setBackendVerification] =
     useState<BackendVerificationResult | null>(null);
 
-  // In-App Half-Screen WebView Preview (Section 10)
+  // Settings Help Modal
+  const [helpModalVisible, setHelpModalVisible] = useState(false);
+  const [activeHelpKey, setActiveHelpKey] = useState<string>("readBack");
+
+  // In-App Half-Screen WebView Preview (Section 13)
   const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const [previewExpanded, setPreviewExpanded] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(true);
   const [previewLoadError, setPreviewLoadError] = useState<string | null>(null);
-  const webViewRef = useRef<any>(null);
-  const WebViewComponent: any = WebView;
+
+  // Confirm Write Modal (Section 10)
+  const [showConfirmWriteModal, setShowConfirmWriteModal] = useState(false);
 
   // Standalone Tag Diagnostic Reader State
   const [diagReading, setDiagReading] = useState(false);
   const [diagTag, setDiagTag] = useState<DetectedTagInfo | null>(null);
+
+  // Language state
+  const [, setLangState] = useState(getCurrentLanguage());
+  useEffect(() => {
+    const unsub = onLanguageChange((l) => setLangState(l));
+    return unsub;
+  }, []);
 
   // Radar Pulse Animation
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -169,9 +290,10 @@ export default function NfcWriterScreen() {
     };
   }, [step, diagReading, capChecking, pulseAnim, pulseOpacity]);
 
-  // Load incoming parameters
+  // Load incoming parameters from router
   useEffect(() => {
     if (params.cardId && params.cardUrl) {
+      setInputMode("website");
       setCardId(String(params.cardId));
       setCardUrl(String(params.cardUrl));
       setOrderId(params.orderId ? String(params.orderId) : "");
@@ -181,6 +303,8 @@ export default function NfcWriterScreen() {
       setVehiclePlate(params.vehiclePlate ? String(params.vehiclePlate) : "");
       setStep("READY_TO_WRITE");
       resetChecklist();
+    } else if (params.mode === "manual") {
+      setInputMode("manual");
     }
   }, [params]);
 
@@ -199,111 +323,147 @@ export default function NfcWriterScreen() {
   // Listen for wireless transfer jobs from web portal
   useEffect(() => {
     const unsub = socketService.onTransferJob((job) => {
-      try {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } catch {}
-      setCardId(job.cardId);
-      setCardUrl(job.cardUrl);
-      setOrderId(job.orderId);
-      setOrderNumber(job.orderNumber);
-      setJobId(job.jobId);
-      setPolicyHolderName(job.policyHolderName || "");
-      setVehiclePlate(job.vehiclePlate || "");
-      setStep("READY_TO_WRITE");
-      setErrorMessage("");
-      resetChecklist();
+      if (inputMode === "website") {
+        try {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch {}
+        setCardId(job.cardId);
+        setCardUrl(job.cardUrl);
+        setOrderId(job.orderId);
+        setOrderNumber(job.orderNumber);
+        setJobId(job.jobId);
+        setPolicyHolderName(job.policyHolderName || "");
+        setVehiclePlate(job.vehiclePlate || "");
+        setStep("READY_TO_WRITE");
+        resetChecklist();
+
+        notificationService.addNotification(
+          "New NFC Card Transferred",
+          `Card ${job.cardId} received for ${job.policyHolderName || "Claim Order"}.`,
+          job.cardId,
+          job
+        );
+      }
     });
-    return () => unsub();
-  }, []);
 
-  const resetChecklist = () => {
-    setChecklist(INITIAL_CHECKLIST);
-    setBackendVerification(null);
-  };
+    return () => {
+      unsub();
+    };
+  }, [inputMode]);
 
-  const updateChecklistItem = (id: number, status: CheckStatus, detail?: string) => {
+  const updateChecklistItem = (
+    id: number,
+    status: CheckStatus,
+    detail?: string
+  ) => {
     setChecklist((prev) =>
       prev.map((item) => (item.id === id ? { ...item, status, detail } : item))
     );
   };
 
-  // Inspect Card Capabilities Prior to Writing
-  const handleInspectCapabilities = async () => {
-    setCapChecking(true);
-    setStep("CHECKING_CAPABILITIES");
+  const resetChecklist = () => {
+    setChecklist(INITIAL_CHECKLIST);
+    setBackendVerification(null);
+    setIsPhysicalWritten(false);
+    setIsReadBackVerified(false);
+    setIsBackendVerified(false);
+  };
+
+  // =========================================================================
+  // MANUAL URL VALIDATION (Section 8)
+  // =========================================================================
+  const validateAndApplyManualUrl = (input: string) => {
+    const clean = input.trim();
+    if (!clean) {
+      setManualUrlError("Please enter a URL.");
+      setManualUrlValidated(false);
+      return false;
+    }
+
+    // Unsafe schemes block
+    const lower = clean.toLowerCase();
+    if (
+      lower.startsWith("javascript:") ||
+      lower.startsWith("file:") ||
+      lower.startsWith("data:") ||
+      lower.startsWith("vbscript:")
+    ) {
+      setManualUrlError(t("unsafeUrlError"));
+      setManualUrlValidated(false);
+      return false;
+    }
+
+    // URL protocol check
     try {
-      const cap = await nfcService.detectTag(cardUrl);
-      setDetectedCap(cap);
-      if (cap) {
-        updateChecklistItem(1, "Passed", `UID: ${cap.tagUid}`);
-        updateChecklistItem(
-          2,
-          cap.ndefSupported ? "Passed" : "Failed",
-          `Tech: ${cap.techList.join(", ")}`
-        );
-        updateChecklistItem(
-          3,
-          cap.isWritable && cap.canFitUrl ? "Passed" : "Failed",
-          `Capacity: ${cap.maxSize} bytes`
-        );
+      const parsed = new URL(clean);
+      const isDev =
+        __DEV__ ||
+        parsed.hostname === "localhost" ||
+        parsed.hostname.startsWith("192.168.");
 
-        if (cap.existingDataPreview && !allowOverwrite) {
-          Alert.alert(
-            "Existing Data Found",
-            `Card contains existing data: "${cap.existingDataPreview}". Enable Overwrite in Settings to proceed.`
-          );
-        }
-      } else {
-        updateChecklistItem(1, "Failed", "No card responded");
+      if (parsed.protocol !== "https:" && (!isDev || parsed.protocol !== "http:")) {
+        setManualUrlError(t("invalidUrlError"));
+        setManualUrlValidated(false);
+        return false;
       }
+
+      setManualUrlError("");
+      setManualUrlValidated(true);
+
+      const isSanasa =
+        parsed.hostname.includes("sanasa") ||
+        parsed.pathname.includes("driver-access");
+      setIsSanasaManaged(isSanasa);
+
+      const generatedId = `MANUAL-${Date.now().toString().slice(-6)}`;
+      setCardId(generatedId);
+      setCardUrl(clean);
+      setOrderNumber("Manual Provisioning");
+      setPolicyHolderName(isSanasa ? "SANASA Policyholder Card" : "Generic NDEF URL");
       setStep("READY_TO_WRITE");
-    } catch (err: any) {
-      updateChecklistItem(1, "Failed", err.message);
-      setStep("READY_TO_WRITE");
-    } finally {
-      setCapChecking(false);
+      resetChecklist();
+
+      return true;
+    } catch {
+      setManualUrlError(t("invalidUrlError"));
+      setManualUrlValidated(false);
+      return false;
     }
   };
 
-  // Toggle Permanent Lock with Safety Confirmation
-  const handleTogglePermanentLock = (val: boolean) => {
-    if (val) {
-      Alert.alert(
-        "Permanent Tag Locking",
-        "WARNING: Locking an NFC card is irreversible. Once locked, the URL on the physical card cannot be updated or reused. Are you certain you want to lock this card?",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Yes, Enable Permanent Lock",
-            style: "destructive",
-            onPress: () => setPermanentLock(true)
-          }
-        ]
-      );
-    } else {
-      setPermanentLock(false);
-    }
+  const handlePasteUrl = async () => {
+    try {
+      Haptics.selectionAsync();
+      const clipboardText = await Clipboard.getStringAsync();
+      if (clipboardText) {
+        setManualUrlInput(clipboardText);
+        validateAndApplyManualUrl(clipboardText);
+      }
+    } catch {}
   };
 
-  // Main Writing Flow: Stage A (Physical NFC) & Stage B (Backend Verification)
-  const handleStartWrite = async () => {
-    if (!cardUrl || !cardId) {
-      Alert.alert("No Card Selected", "Please select or receive a card transfer job first.");
+  const handleClearUrl = () => {
+    setManualUrlInput("");
+    setManualUrlError("");
+    setManualUrlValidated(false);
+    setCardUrl("");
+    setCardId("");
+    setStep("IDLE");
+    resetChecklist();
+  };
+
+  // =========================================================================
+  // STEP 1: DETECT TAG & INSPECT CAPABILITIES (Section 9 & 10)
+  // =========================================================================
+  const handleScanAndDetectTag = async () => {
+    if (!cardUrl) {
+      Alert.alert("Input Required", "Please select a card or enter a valid URL first.");
       return;
     }
 
-    if (!nfcStatus.isExpoGo) {
-      if (!nfcStatus.supported) {
-        Alert.alert("Hardware Unsupported", "This device does not have NFC hardware.");
-        return;
-      }
-      if (!nfcStatus.enabled) {
-        Alert.alert("NFC is Disabled", "Please enable NFC in system settings to continue.", [
-          { text: "Cancel", style: "cancel" },
-          { text: "Open Settings", onPress: () => nfcService.openSystemNfcSettings() }
-        ]);
-        return;
-      }
+    if (!nfcStatus.supported) {
+      Alert.alert("NFC Not Available", t("nfcNotSupported"));
+      return;
     }
 
     try {
@@ -311,23 +471,18 @@ export default function NfcWriterScreen() {
     } catch {}
 
     setStep("WAITING_FOR_TAG");
+    setCapChecking(true);
     setErrorMessage("");
-    setDetectedUid("");
+    setDetectedCap(null);
 
-    // Reset items 1 to 5 for new write attempt
+    // Reset items 1 to 5
     updateChecklistItem(1, "Pending");
     updateChecklistItem(2, "Pending");
     updateChecklistItem(3, "Pending");
     updateChecklistItem(4, "Pending");
     updateChecklistItem(5, "Pending");
 
-    if (jobId) {
-      socketService.reportJobStatus(jobId, "Writing").catch(() => {});
-    }
-
     try {
-      // Step 1: Detect & Check capabilities
-      setStep("CHECKING_CAPABILITIES");
       const cap = await nfcService.detectTag(cardUrl);
       setDetectedCap(cap);
 
@@ -344,19 +499,60 @@ export default function NfcWriterScreen() {
           `Capacity: ${cap.maxSize} bytes`
         );
 
+        setDetectedUid(cap.tagUid);
+        setDetectedTech(cap.techList.join(", "));
+
+        if (!cap.ndefSupported) {
+          throw new Error("Physical tag does not support NDEF standards. Use an NTAG213/215/216 chip.");
+        }
         if (!cap.isWritable) {
-          throw new Error("Physical card is locked / read-only and cannot be rewritten.");
+          throw new Error("Physical card is locked / read-only and cannot be written.");
         }
         if (!cap.canFitUrl) {
-          throw new Error(`URL length (${cardUrl.length}b) exceeds tag capacity (${cap.maxSize}b).`);
+          throw new Error(`Target URL (${cardUrl.length}b) exceeds chip memory (${cap.maxSize}b).`);
         }
         if (cap.existingDataPreview && !allowOverwrite) {
-          throw new Error("Card contains existing data and overwrite permission is disabled.");
+          throw new Error("Card contains existing data. Enable 'Allow Overwrite' in settings below to proceed.");
         }
-      }
 
-      // Step 2: Physical Write
-      setStep("WRITING_TAG");
+        // Tag passed inspection! Move to confirmation state
+        setStep("READY_TO_CONFIRM");
+        try {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch {}
+      } else {
+        setStep("READY_TO_WRITE");
+      }
+    } catch (err: any) {
+      setStep("ERROR");
+      setErrorMessage(err.message || "Failed to detect NFC card.");
+      updateChecklistItem(1, "Failed", err.message);
+    } finally {
+      setCapChecking(false);
+    }
+  };
+
+  // =========================================================================
+  // STEP 2: CONFIRM & WRITE PHYSICAL NFC TAG (Section 10)
+  // =========================================================================
+  const handleConfirmAndWrite = async () => {
+    if (writeLocked) return;
+    setWriteLocked(true);
+    setShowConfirmWriteModal(false);
+
+    setStep("WRITING_TAG");
+    setErrorMessage("");
+
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    } catch {}
+
+    if (jobId) {
+      socketService.reportJobStatus(jobId, "Writing").catch(() => {});
+    }
+
+    try {
+      // Physical write
       const writeRes = await nfcService.writeAndVerifyUri(cardUrl, {
         lockPermanently: permanentLock
       });
@@ -366,26 +562,31 @@ export default function NfcWriterScreen() {
         throw new Error(writeRes.error || "NFC write operation failed.");
       }
 
+      // Mark physical write as passed!
+      setIsPhysicalWritten(true);
       updateChecklistItem(4, "Passed", "NDEF URI record encoded");
       setDetectedUid(writeRes.tagUid);
       setDetectedTech(writeRes.tagTech);
       setReadBackUrl(writeRes.readBackUrl);
 
-      // Step 3: Strict Read-Back Verification
+      // Strict read-back comparison
       setStep("VERIFYING_READBACK");
       if (strictReadBack) {
         if (!writeRes.readBackVerified) {
+          setIsReadBackVerified(false);
           updateChecklistItem(5, "Failed", "Read-back URI did not match");
-          throw new Error("Strict read-back verification failed: Read URI does not match expected URL.");
+          throw new Error("Strict read-back verification failed: Stored URL does not match intended URL.");
         }
+        setIsReadBackVerified(true);
         updateChecklistItem(5, "Passed", "Exact byte-for-byte URI match");
       } else {
+        setIsReadBackVerified(true);
         updateChecklistItem(5, "Passed", "Read-back skipped by setting");
       }
 
-      // Step 4: Stage B Backend Verification
+      // Backend token verification & security audit trail
       setStep("VERIFYING_BACKEND");
-      setSyncStatusText("Verifying token status, vehicle assignment & security audit trail...");
+      setSyncStatusText(t("verifyingBackend"));
 
       const backendRes = await verifyBackendAccess({
         cardId,
@@ -398,6 +599,7 @@ export default function NfcWriterScreen() {
       setBackendVerification(backendRes);
 
       if (backendRes.success && backendRes.verified) {
+        setIsBackendVerified(true);
         updateChecklistItem(6, "Passed", `Status: ${backendRes.tokenStatus}`);
         updateChecklistItem(7, "Passed", "Not Revoked or Expired");
         updateChecklistItem(
@@ -425,8 +627,7 @@ export default function NfcWriterScreen() {
         updateChecklistItem(11, "Failed", "Verification rejected");
       }
 
-      // Step 5: Final Acknowledgement and Sync
-      setSyncStatusText("Saving final write acknowledgement to SANASA database...");
+      // Final acknowledgement & Sync
       const syncRes = await completeCardWriteAndSync({
         jobId,
         cardId,
@@ -451,31 +652,41 @@ export default function NfcWriterScreen() {
       } else {
         updateChecklistItem(10, "Pending", "Queued for retry");
         setStep("SYNC_PENDING");
-        setSyncStatusText("Physical tag verified! Server sync is pending network connection.");
+        setSyncStatusText(t("syncPending"));
       }
 
       try {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch {}
+
+      notificationService.addNotification(
+        "Card Written Successfully",
+        `Card ${cardId} was physically written and read-back verified.`,
+        cardId
+      );
     } catch (err: any) {
       try {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       } catch {}
-      console.warn("Write error:", err.message);
       setStep("ERROR");
       setErrorMessage(err.message || "Failed to write NFC tag.");
 
       if (jobId) {
         socketService.reportJobStatus(jobId, "Failed", err.message).catch(() => {});
       }
+    } finally {
+      setWriteLocked(false);
     }
   };
 
-  // Safe Retry of Backend Verification Only (Without rewriting physical NFC tag)
+  // =========================================================================
+  // FIX FOR BUG IN SECTION 12: SAFE RETRY OF BACKEND VERIFICATION ONLY
+  // =========================================================================
   const handleRetryBackendVerification = async () => {
     if (!cardId || !cardUrl) return;
+
     setStep("VERIFYING_BACKEND");
-    setSyncStatusText("Retrying backend token and permissions check...");
+    setSyncStatusText(t("verifyingBackend"));
 
     try {
       const backendRes = await verifyBackendAccess({
@@ -488,30 +699,50 @@ export default function NfcWriterScreen() {
       setBackendVerification(backendRes);
 
       if (backendRes.success && backendRes.verified) {
+        setIsBackendVerified(true);
         updateChecklistItem(6, "Passed", `Status: ${backendRes.tokenStatus}`);
         updateChecklistItem(7, "Passed", "Not Revoked or Expired");
         updateChecklistItem(8, "Passed", `Plate: ${backendRes.vehiclePlate || "Assigned"}`);
         updateChecklistItem(11, "Passed", "Security audit updated");
-        setStep("SUCCESS");
-        setSyncStatusText("Backend verification succeeded! Ready for preview.");
+
+        // CRITICAL BUG FIX (Section 12):
+        // Only set SUCCESS if physical write and read-back verification ACTUALLY succeeded!
+        if (isPhysicalWritten && isReadBackVerified) {
+          setStep("SUCCESS");
+          setSyncStatusText("Physical write, backend token check & audit sync succeeded!");
+        } else {
+          // Physical card has NOT been written yet. Do not mark physical write or card workflow as completed!
+          setStep(detectedCap ? "READY_TO_CONFIRM" : "READY_TO_WRITE");
+          setSyncStatusText("Backend token verified and active! Please tap and write physical NFC card.");
+          Alert.alert(
+            "Backend Verification Passed",
+            "The backend token is active and valid. However, the physical NFC card has NOT yet been written.\n\nPlease hold the NFC card against your phone and tap 'Confirm & Write NFC' to perform the physical write."
+          );
+        }
       } else {
+        setIsBackendVerified(false);
         updateChecklistItem(6, "Failed", backendRes.tokenStatus);
+        updateChecklistItem(7, "Failed", "Token check failed");
+        updateChecklistItem(8, "Failed", backendRes.message || "Unauthorized");
+        updateChecklistItem(11, "Failed", "Verification rejected");
         setStep("WRITTEN_BACKEND_PENDING");
-        Alert.alert("Backend Verification", backendRes.message);
+        Alert.alert("Backend Verification", backendRes.message || "Token verification failed.");
       }
     } catch (err: any) {
       Alert.alert("Retry Failed", err.message || "Could not reach server.");
-      setStep("WRITTEN_BACKEND_PENDING");
+      setStep(isPhysicalWritten ? "WRITTEN_BACKEND_PENDING" : "READY_TO_WRITE");
     }
   };
 
   const handleCancel = async () => {
     await nfcService.cancelSession();
-    setStep("READY_TO_WRITE");
+    setStep(detectedCap ? "READY_TO_CONFIRM" : "READY_TO_WRITE");
     setErrorMessage("");
   };
 
+  // Ready for Next Card (Section 14)
   const handleResetForNext = () => {
+    nfcService.cancelSession().catch(() => {});
     setStep("IDLE");
     setCardId("");
     setCardUrl("");
@@ -523,8 +754,45 @@ export default function NfcWriterScreen() {
     setErrorMessage("");
     setDetectedCap(null);
     setDiagTag(null);
+    setIsPhysicalWritten(false);
+    setIsReadBackVerified(false);
+    setIsBackendVerified(false);
+    setManualUrlInput("");
+    setManualUrlValidated(false);
     resetChecklist();
   };
+
+  // Permanent Lock Toggle with Explicit Warning (Section 11)
+  const handlePermanentLockToggle = (value: boolean) => {
+    if (value) {
+      Alert.alert(
+        t("lockWarningTitle"),
+        t("lockWarningMessage"),
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Enable Permanent Lock",
+            style: "destructive",
+            onPress: () => setPermanentLock(true)
+          }
+        ]
+      );
+    } else {
+      setPermanentLock(false);
+    }
+  };
+
+  // Open Help Popup (Section 11)
+  const openHelpModal = (key: string) => {
+    setActiveHelpKey(key);
+    setHelpModalVisible(true);
+  };
+
+  const currentLangCode = getCurrentLanguage();
+  const helpInfo =
+    SETTING_HELP_TEXTS[currentLangCode]?.[activeHelpKey] ||
+    SETTING_HELP_TEXTS["en"][activeHelpKey] ||
+    SETTING_HELP_TEXTS["en"]["readBack"];
 
   // Standalone Tag Diagnostic Reader
   const handleTestTagScan = async () => {
@@ -546,40 +814,40 @@ export default function NfcWriterScreen() {
     }
   };
 
-  // Helper for checklist status badge
   const renderCheckBadge = (status: CheckStatus) => {
     switch (status) {
       case "Passed":
         return (
           <View style={styles.badgePassed}>
             <MaterialCommunityIcons name="check" size={12} color="#059669" />
-            <Text style={styles.badgePassedText}>Passed</Text>
+            <Text style={styles.badgePassedText}>{t("checkPassed")}</Text>
           </View>
         );
       case "Failed":
         return (
           <View style={styles.badgeFailed}>
             <MaterialCommunityIcons name="close" size={12} color="#DC2626" />
-            <Text style={styles.badgeFailedText}>Failed</Text>
+            <Text style={styles.badgeFailedText}>{t("checkFailed")}</Text>
           </View>
         );
       case "Unavailable":
         return (
           <View style={styles.badgeUnavailable}>
             <MaterialCommunityIcons name="minus" size={12} color="#64748B" />
-            <Text style={styles.badgeUnavailableText}>Unavailable</Text>
+            <Text style={styles.badgeUnavailableText}>Offline</Text>
           </View>
         );
       default:
         return (
           <View style={styles.badgePending}>
             <MaterialCommunityIcons name="clock-outline" size={12} color="#D97706" />
-            <Text style={styles.badgePendingText}>Pending</Text>
+            <Text style={styles.badgePendingText}>{t("checkPending")}</Text>
           </View>
         );
     }
   };
 
+  // Required checks: Tag detected, physical write, readback verified, token verified
   const allRequiredPassed =
     checklist[0].status === "Passed" &&
     checklist[3].status === "Passed" &&
@@ -588,651 +856,459 @@ export default function NfcWriterScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Top Stepper */}
-      <View style={styles.stepperContainer}>
-        <View style={styles.stepItem}>
-          <View style={[styles.stepDot, cardId ? styles.stepDotActive : null]}>
-            <Text style={[styles.stepDotNum, cardId ? styles.stepDotNumActive : null]}>1</Text>
-          </View>
-          <Text style={[styles.stepLabel, cardId ? styles.stepLabelActive : null]}>Card Ready</Text>
-        </View>
-        <View style={[styles.stepLine, step !== "IDLE" && styles.stepLineActive]} />
-
-        <View style={styles.stepItem}>
-          <View
-            style={[
-              styles.stepDot,
-              (step === "WAITING_FOR_TAG" ||
-                step === "CHECKING_CAPABILITIES" ||
-                step === "WRITING_TAG" ||
-                step === "VERIFYING_READBACK" ||
-                step === "VERIFYING_BACKEND" ||
-                step === "SUCCESS") &&
-                styles.stepDotActive
-            ]}
-          >
-            <Text
-              style={[
-                styles.stepDotNum,
-                (step === "WAITING_FOR_TAG" ||
-                  step === "CHECKING_CAPABILITIES" ||
-                  step === "WRITING_TAG" ||
-                  step === "VERIFYING_READBACK" ||
-                  step === "VERIFYING_BACKEND" ||
-                  step === "SUCCESS") &&
-                  styles.stepDotNumActive
-              ]}
-            >
-              2
-            </Text>
-          </View>
-          <Text
-            style={[
-              styles.stepLabel,
-              (step === "WAITING_FOR_TAG" ||
-                step === "CHECKING_CAPABILITIES" ||
-                step === "WRITING_TAG" ||
-                step === "VERIFYING_READBACK" ||
-                step === "VERIFYING_BACKEND" ||
-                step === "SUCCESS") &&
-                styles.stepLabelActive
-            ]}
-          >
-            Detect Tag
-          </Text>
-        </View>
-        <View
+      {/* Top Mode Selector Tabs (Section 8) */}
+      <View style={styles.modeTabsWrap}>
+        <TouchableOpacity
           style={[
-            styles.stepLine,
-            (step === "WRITING_TAG" ||
-              step === "VERIFYING_READBACK" ||
-              step === "VERIFYING_BACKEND" ||
-              step === "SUCCESS") &&
-              styles.stepLineActive
+            styles.modeTabBtn,
+            inputMode === "website" && styles.modeTabBtnActive
           ]}
-        />
-
-        <View style={styles.stepItem}>
-          <View
-            style={[
-              styles.stepDot,
-              (step === "WRITING_TAG" ||
-                step === "VERIFYING_READBACK" ||
-                step === "VERIFYING_BACKEND" ||
-                step === "SUCCESS") &&
-                styles.stepDotActive
-            ]}
-          >
-            <Text
-              style={[
-                styles.stepDotNum,
-                (step === "WRITING_TAG" ||
-                  step === "VERIFYING_READBACK" ||
-                  step === "VERIFYING_BACKEND" ||
-                  step === "SUCCESS") &&
-                  styles.stepDotNumActive
-              ]}
-            >
-              3
-            </Text>
-          </View>
+          onPress={() => {
+            setInputMode("website");
+            if (manualUrlValidated && !params.cardUrl) {
+              handleResetForNext();
+            }
+          }}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons
+            name="cellphone-link"
+            size={16}
+            color={inputMode === "website" ? "#2563EB" : "#64748B"}
+          />
           <Text
             style={[
-              styles.stepLabel,
-              (step === "WRITING_TAG" ||
-                step === "VERIFYING_READBACK" ||
-                step === "VERIFYING_BACKEND" ||
-                step === "SUCCESS") &&
-                styles.stepLabelActive
+              styles.modeTabText,
+              inputMode === "website" && styles.modeTabTextActive
             ]}
           >
-            Write NDEF
+            {t("receiveModeWebsite")}
           </Text>
-        </View>
-        <View style={[styles.stepLine, step === "SUCCESS" && styles.stepLineActive]} />
+        </TouchableOpacity>
 
-        <View style={styles.stepItem}>
-          <View style={[styles.stepDot, step === "SUCCESS" && styles.stepDotSuccess]}>
-            <MaterialCommunityIcons
-              name={step === "SUCCESS" ? "check" : "numeric-4"}
-              size={13}
-              color={step === "SUCCESS" ? "#FFFFFF" : "#64748B"}
-            />
-          </View>
-          <Text style={[styles.stepLabel, step === "SUCCESS" && styles.stepLabelSuccess]}>
-            Verified
+        <TouchableOpacity
+          style={[
+            styles.modeTabBtn,
+            inputMode === "manual" && styles.modeTabBtnActive
+          ]}
+          onPress={() => setInputMode("manual")}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons
+            name="link-plus"
+            size={16}
+            color={inputMode === "manual" ? "#2563EB" : "#64748B"}
+          />
+          <Text
+            style={[
+              styles.modeTabText,
+              inputMode === "manual" && styles.modeTabTextActive
+            ]}
+          >
+            {t("enterUrlManually")}
           </Text>
-        </View>
+        </TouchableOpacity>
       </View>
 
-      {/* Hardware Status Banner */}
-      {nfcStatus.isExpoGo ? (
-        <View style={styles.hardwareBannerInfo}>
-          <MaterialCommunityIcons name="cellphone-nfc" size={22} color="#0284C7" />
-          <View style={styles.hardwareBannerTextWrap}>
-            <Text style={styles.bannerTitleInfo}>Expo Go • Simulation Mode Active</Text>
-            <Text style={styles.bannerDescInfo}>
-              Simulation mode is active for end-to-end testing of write, read-back & backend access verification.
-            </Text>
+      {/* MANUAL URL INPUT SECTION (Section 8) */}
+      {inputMode === "manual" && (
+        <View style={styles.manualCard}>
+          <View style={styles.manualHeader}>
+            <MaterialCommunityIcons name="form-textbox" size={18} color="#2563EB" />
+            <Text style={styles.manualTitle}>{t("manualUrlTitle")}</Text>
           </View>
-        </View>
-      ) : !nfcStatus.supported ? (
-        <View style={styles.hardwareBannerError}>
-          <MaterialCommunityIcons name="nfc-search-variant" size={22} color="#DC2626" />
-          <View style={styles.hardwareBannerTextWrap}>
-            <Text style={styles.bannerTitleError}>NFC Hardware Unavailable</Text>
-            <Text style={styles.bannerDescError}>
-              This Android device lacks NFC hardware.
-            </Text>
-          </View>
-        </View>
-      ) : !nfcStatus.enabled ? (
-        <View style={styles.hardwareBannerWarn}>
-          <MaterialCommunityIcons name="nfc-search-variant" size={22} color="#D97706" />
-          <View style={styles.hardwareBannerTextWrap}>
-            <Text style={styles.bannerTitleWarn}>NFC is Turned OFF</Text>
-            <Text style={styles.bannerDescWarn}>
-              Enable NFC in system settings to write physical cards.
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={styles.openSettingsBtn}
-            onPress={() => nfcService.openSystemNfcSettings()}
-          >
-            <Text style={styles.openSettingsBtnText}>Enable</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <View style={styles.hardwareBannerReady}>
-          <MaterialCommunityIcons name="check-circle" size={18} color="#059669" />
-          <Text style={styles.bannerTextReady}>
-            NFC Antenna Active • ISO 14443-A NDEF URI Mode
-          </Text>
-        </View>
-      )}
+          <Text style={styles.manualDesc}>{t("manualUrlDesc")}</Text>
 
-      {/* Main Interactive Writing Card */}
-      <View style={styles.card}>
-        {/* Antenna Guide with Radar */}
-        <View style={styles.antennaGuideBox}>
-          <View style={styles.radarWrapper}>
-            {(step === "WAITING_FOR_TAG" ||
-              step === "CHECKING_CAPABILITIES" ||
-              step === "WRITING_TAG" ||
-              step === "VERIFYING_READBACK" ||
-              diagReading ||
-              capChecking) && (
-              <Animated.View
-                style={[
-                  styles.pulseRing,
-                  {
-                    transform: [{ scale: pulseAnim }],
-                    opacity: pulseOpacity
-                  }
-                ]}
-              />
-            )}
-
-            <View style={styles.radarRingOuter}>
-              <LinearGradient
-                colors={
-                  step === "SUCCESS"
-                    ? ["#059669", "#10B981"]
-                    : step === "ERROR"
-                    ? ["#DC2626", "#EF4444"]
-                    : step === "WAITING_FOR_TAG" ||
-                      step === "CHECKING_CAPABILITIES" ||
-                      step === "WRITING_TAG"
-                    ? ["#2563EB", "#0284C7"]
-                    : ["#EFF6FF", "#DBEAFE"]
-                }
-                style={styles.radarRingInner}
-              >
-                <MaterialCommunityIcons
-                  name={
-                    step === "SUCCESS"
-                      ? "check-bold"
-                      : step === "ERROR"
-                      ? "alert-circle"
-                      : "credit-card-wireless"
-                  }
-                  size={36}
-                  color={
-                    step === "SUCCESS" ||
-                    step === "ERROR" ||
-                    step === "WAITING_FOR_TAG" ||
-                    step === "CHECKING_CAPABILITIES" ||
-                    step === "WRITING_TAG"
-                      ? "#FFFFFF"
-                      : "#2563EB"
-                  }
-                />
-              </LinearGradient>
-            </View>
-          </View>
-
-          <Text style={styles.antennaInstruction}>
-            {step === "WAITING_FOR_TAG"
-              ? "Hold card steady against the back of your phone..."
-              : step === "CHECKING_CAPABILITIES"
-              ? "Card detected! Checking memory & write capabilities..."
-              : step === "WRITING_TAG"
-              ? "Writing NDEF URI payload..."
-              : step === "VERIFYING_READBACK"
-              ? "Reading back from card to verify URI..."
-              : step === "VERIFYING_BACKEND"
-              ? "Verifying backend token & vehicle assignment..."
-              : step === "SUCCESS"
-              ? "Card Verified & Ready for Driver!"
-              : step === "WRITTEN_BACKEND_PENDING"
-              ? "Written — Backend Verification Pending"
-              : step === "SYNC_PENDING"
-              ? "Card Written (Sync Pending)"
-              : step === "ERROR"
-              ? "Operation Failed"
-              : "NFC Antenna Guide"}
-          </Text>
-          <Text style={styles.antennaSubInstruction}>
-            {detectedCap
-              ? `Status: ${detectedCap.statusMessage}`
-              : "Place physical card near top-center on the back of phone."}
-          </Text>
-        </View>
-
-        {/* Selected Card Information */}
-        {cardId ? (
-          <View style={styles.cardInfoBox}>
-            <View style={styles.cardInfoRow}>
-              <Text style={styles.infoLabel}>Card Identifier:</Text>
-              <Text style={styles.infoCardId}>{cardId}</Text>
-            </View>
-            {orderNumber ? (
-              <View style={styles.cardInfoRow}>
-                <Text style={styles.infoLabel}>Order Reference:</Text>
-                <Text style={styles.infoVal}>{orderNumber}</Text>
-              </View>
-            ) : null}
-            {vehiclePlate ? (
-              <View style={styles.cardInfoRow}>
-                <Text style={styles.infoLabel}>Assigned Vehicle:</Text>
-                <View style={styles.vehicleBadge}>
-                  <MaterialCommunityIcons name="car" size={13} color="#2563EB" />
-                  <Text style={styles.vehicleBadgeText}>{vehiclePlate}</Text>
-                </View>
-              </View>
-            ) : null}
-            {policyHolderName ? (
-              <View style={styles.cardInfoRow}>
-                <Text style={styles.infoLabel}>Policyholder:</Text>
-                <Text style={styles.infoVal}>{policyHolderName}</Text>
-              </View>
-            ) : null}
-            <View style={styles.cardInfoRow}>
-              <Text style={styles.infoLabel}>Branch Scope:</Text>
-              <View style={styles.branchPill}>
-                <Text style={styles.branchPillText}>{staff?.branch || "Galle"} Branch</Text>
-              </View>
-            </View>
-            <View style={styles.cardInfoRow}>
-              <Text style={styles.infoLabel}>Authorized URL:</Text>
-              <Text style={styles.infoMono}>{maskUrlToken(cardUrl)}</Text>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.noCardBox}>
-            <MaterialCommunityIcons name="tray-alert" size={26} color="#94A3B8" />
-            <Text style={styles.noCardText}>No card currently selected for writing.</Text>
-            <Text style={styles.noCardSubtext}>
-              Click "Transfer to NFC Writer" in the website portal or select from the Dashboard.
-            </Text>
-          </View>
-        )}
-
-        {/* Section 6: Per-Card NFC Settings Panel */}
-        {cardId ? (
-          <View style={styles.settingsPanel}>
-            <TouchableOpacity
-              style={styles.settingsPanelHeader}
-              onPress={() => setShowSettingsPanel(!showSettingsPanel)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.settingsTitleWrap}>
-                <MaterialCommunityIcons name="cog-outline" size={16} color="#0F2942" />
-                <Text style={styles.settingsPanelTitle}>Per-Card NFC Settings & Capabilities</Text>
-              </View>
-              <MaterialCommunityIcons
-                name={showSettingsPanel ? "chevron-up" : "chevron-down"}
-                size={20}
-                color="#64748B"
-              />
-            </TouchableOpacity>
-
-            {showSettingsPanel && (
-              <View style={styles.settingsBody}>
-                {/* Capability Specs */}
-                <View style={styles.capGrid}>
-                  <View style={styles.capItem}>
-                    <Text style={styles.capLabel}>Target URL Size</Text>
-                    <Text style={styles.capVal}>{cardUrl ? `${cardUrl.length} bytes` : "0b"}</Text>
-                  </View>
-                  <View style={styles.capItem}>
-                    <Text style={styles.capLabel}>Tag Capacity</Text>
-                    <Text style={styles.capVal}>
-                      {detectedCap ? `${detectedCap.maxSize} bytes` : "540 bytes (Est.)"}
-                    </Text>
-                  </View>
-                  <View style={styles.capItem}>
-                    <Text style={styles.capLabel}>Writable State</Text>
-                    <Text
-                      style={[
-                        styles.capVal,
-                        { color: detectedCap?.isLocked ? "#DC2626" : "#059669" }
-                      ]}
-                    >
-                      {detectedCap ? (detectedCap.isLocked ? "Read-Only" : "Writable") : "Writable"}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Capability Check Action */}
-                <TouchableOpacity
-                  style={styles.checkCapBtn}
-                  onPress={handleInspectCapabilities}
-                  disabled={capChecking}
-                >
-                  {capChecking ? (
-                    <ActivityIndicator size="small" color="#2563EB" />
-                  ) : (
-                    <>
-                      <MaterialCommunityIcons
-                        name="credit-card-scan-outline"
-                        size={15}
-                        color="#2563EB"
-                      />
-                      <Text style={styles.checkCapBtnText}>Inspect Tag Capabilities</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-
-                {/* Settings Toggles */}
-                <View style={styles.settingRow}>
-                  <View style={styles.settingTextWrap}>
-                    <Text style={styles.settingName}>Strict Read-Back Verification</Text>
-                    <Text style={styles.settingDesc}>
-                      Reads back URI immediately to guarantee 100% byte match.
-                    </Text>
-                  </View>
-                  <Switch
-                    value={strictReadBack}
-                    onValueChange={setStrictReadBack}
-                    trackColor={{ false: "#CBD5E1", true: "#93C5FD" }}
-                    thumbColor={strictReadBack ? "#2563EB" : "#F1F5F9"}
-                  />
-                </View>
-
-                <View style={styles.settingRow}>
-                  <View style={styles.settingTextWrap}>
-                    <Text style={styles.settingName}>Allow Overwrite Existing Data</Text>
-                    <Text style={styles.settingDesc}>
-                      Replaces existing NDEF payload if card has prior data.
-                    </Text>
-                  </View>
-                  <Switch
-                    value={allowOverwrite}
-                    onValueChange={setAllowOverwrite}
-                    trackColor={{ false: "#CBD5E1", true: "#93C5FD" }}
-                    thumbColor={allowOverwrite ? "#2563EB" : "#F1F5F9"}
-                  />
-                </View>
-
-                <View style={[styles.settingRow, styles.settingRowWarning]}>
-                  <View style={styles.settingTextWrap}>
-                    <View style={styles.settingWarningHeader}>
-                      <Text style={styles.settingName}>Permanent Tag Lock (Read-Only)</Text>
-                      <View style={styles.dangerTag}>
-                        <Text style={styles.dangerTagText}>Irreversible</Text>
-                      </View>
-                    </View>
-                    <Text style={styles.settingDesc}>
-                      Permanently locks NFC chip. OFF by default. Requires explicit confirmation.
-                    </Text>
-                  </View>
-                  <Switch
-                    value={permanentLock}
-                    onValueChange={handleTogglePermanentLock}
-                    trackColor={{ false: "#CBD5E1", true: "#FCA5A5" }}
-                    thumbColor={permanentLock ? "#DC2626" : "#F1F5F9"}
-                  />
-                </View>
-              </View>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.manualInput}
+              placeholder={t("urlInputPlaceholder")}
+              placeholderTextColor="#94A3B8"
+              value={manualUrlInput}
+              onChangeText={(txt) => {
+                setManualUrlInput(txt);
+                setManualUrlError("");
+              }}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+            />
+            {manualUrlInput.length > 0 && (
+              <TouchableOpacity onPress={handleClearUrl} style={styles.inputClearBtn}>
+                <MaterialCommunityIcons name="close-circle" size={18} color="#94A3B8" />
+              </TouchableOpacity>
             )}
           </View>
-        ) : null}
 
-        {/* Dynamic Action Buttons */}
-        <View style={styles.actionsWrap}>
-          {step === "IDLE" || step === "READY_TO_WRITE" ? (
-            <TouchableOpacity
-              style={[
-                styles.primaryBtn,
-                (!cardId || (!nfcStatus.enabled && !nfcStatus.isExpoGo)) && styles.btnDisabled
-              ]}
-              onPress={handleStartWrite}
-              disabled={!cardId || (!nfcStatus.enabled && !nfcStatus.isExpoGo)}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={
-                  !cardId || (!nfcStatus.enabled && !nfcStatus.isExpoGo)
-                    ? ["#CBD5E1", "#94A3B8"]
-                    : ["#2563EB", "#1D4ED8"]
-                }
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.gradientBtnContent}
-              >
-                <MaterialCommunityIcons
-                  name={nfcStatus.isExpoGo ? "play-circle-outline" : "nfc"}
-                  size={20}
-                  color="#FFFFFF"
-                />
-                <Text style={styles.primaryBtnText}>
-                  {nfcStatus.isExpoGo ? "Simulate & Verify NFC Write" : "Confirm & Write NFC Card"}
-                </Text>
-              </LinearGradient>
+          {manualUrlError ? (
+            <View style={styles.errorNotice}>
+              <MaterialCommunityIcons name="alert-circle-outline" size={14} color="#DC2626" />
+              <Text style={styles.errorNoticeText}>{manualUrlError}</Text>
+            </View>
+          ) : null}
+
+          <View style={styles.manualActionRow}>
+            <TouchableOpacity style={styles.pasteBtn} onPress={handlePasteUrl}>
+              <MaterialCommunityIcons name="content-paste" size={14} color="#334155" />
+              <Text style={styles.pasteBtnText}>{t("pasteBtn")}</Text>
             </TouchableOpacity>
-          ) : step === "WAITING_FOR_TAG" ||
-            step === "CHECKING_CAPABILITIES" ||
-            step === "WRITING_TAG" ||
-            step === "VERIFYING_READBACK" ||
-            step === "VERIFYING_BACKEND" ? (
-            <View style={styles.inProgressContainer}>
-              <ActivityIndicator size="large" color="#2563EB" style={{ marginBottom: 12 }} />
-              <Text style={styles.inProgressText}>
-                {step === "WAITING_FOR_TAG"
-                  ? "Looking for NFC Tag..."
-                  : step === "CHECKING_CAPABILITIES"
-                  ? "Inspecting Tag Capabilities..."
-                  : step === "WRITING_TAG"
-                  ? "Writing NDEF URI Payload..."
-                  : step === "VERIFYING_READBACK"
-                  ? "Verifying Read-Back URI..."
-                  : "Verifying Backend Token & Permissions..."}
-              </Text>
-              <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          ) : step === "SUCCESS" || step === "WRITTEN_BACKEND_PENDING" || step === "SYNC_PENDING" ? (
-            <View style={styles.resultBox}>
-              <View
-                style={
-                  step === "SUCCESS"
-                    ? styles.resultBadgeSuccess
-                    : styles.resultBadgeWarn
-                }
-              >
-                <MaterialCommunityIcons
-                  name={step === "SUCCESS" ? "check-circle" : "alert-circle-outline"}
-                  size={20}
-                  color={step === "SUCCESS" ? "#059669" : "#D97706"}
-                />
-                <Text
-                  style={
-                    step === "SUCCESS" ? styles.resultBadgeText : styles.resultBadgeTextWarn
-                  }
-                >
-                  {step === "SUCCESS"
-                    ? "Physical NFC & Backend Verified"
-                    : "Written — Backend Verification Pending"}
+
+            <TouchableOpacity
+              style={styles.validateBtn}
+              onPress={() => validateAndApplyManualUrl(manualUrlInput)}
+            >
+              <Text style={styles.validateBtnText}>{t("validateBtn")}</Text>
+              <MaterialCommunityIcons name="check" size={14} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+
+          {manualUrlValidated && cardUrl ? (
+            <View style={styles.validatedNotice}>
+              <MaterialCommunityIcons name="shield-check" size={16} color="#059669" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.validatedNoticeTitle}>
+                  {isSanasaManaged
+                    ? "SANASA Managed Driver URL Verified"
+                    : "Standard NDEF URL Formatted"}
                 </Text>
-              </View>
-
-              {detectedUid ? (
-                <View style={styles.tagMetaGrid}>
-                  <View style={styles.tagMetaRow}>
-                    <Text style={styles.tagMetaLabel}>Physical Tag UID:</Text>
-                    <Text style={styles.tagMetaValMono}>{detectedUid}</Text>
-                  </View>
-                  <View style={styles.tagMetaRow}>
-                    <Text style={styles.tagMetaLabel}>Tag Technology:</Text>
-                    <Text style={styles.tagMetaVal}>{detectedTech || "NFC Forum Type 2"}</Text>
-                  </View>
-                  <View style={styles.tagMetaRow}>
-                    <Text style={styles.tagMetaLabel}>Read-Back Result:</Text>
-                    <Text style={[styles.tagMetaVal, { color: "#059669" }]}>100% Match</Text>
-                  </View>
-                  {backendVerification ? (
-                    <View style={styles.tagMetaRow}>
-                      <Text style={styles.tagMetaLabel}>Backend Token:</Text>
-                      <Text
-                        style={[
-                          styles.tagMetaVal,
-                          {
-                            color:
-                              backendVerification.tokenStatus === "Active"
-                                ? "#059669"
-                                : "#DC2626"
-                          }
-                        ]}
-                      >
-                        {backendVerification.tokenStatus}
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-              ) : null}
-
-              <Text style={styles.syncStatusDesc}>{syncStatusText}</Text>
-
-              {/* Section 10: In-App Half-Screen Preview Button */}
-              <TouchableOpacity
-                style={styles.previewBtn}
-                onPress={() => {
-                  setShowPreviewModal(true);
-                  setPreviewLoadError(null);
-                  updateChecklistItem(9, "Passed", "In-app preview loaded");
-                }}
-                activeOpacity={0.8}
-              >
-                <LinearGradient
-                  colors={["#0284C7", "#0369A1"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.gradientBtnContent}
-                >
-                  <MaterialCommunityIcons name="open-in-app" size={19} color="#FFFFFF" />
-                  <Text style={styles.previewBtnText}>Preview Access (Half-Screen)</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-
-              {/* Safe Backend Verification Retry */}
-              {step === "WRITTEN_BACKEND_PENDING" ? (
-                <TouchableOpacity
-                  style={styles.retryBackendBtn}
-                  onPress={handleRetryBackendVerification}
-                >
-                  <MaterialCommunityIcons name="refresh" size={16} color="#2563EB" />
-                  <Text style={styles.retryBackendBtnText}>Retry Backend Verification</Text>
-                </TouchableOpacity>
-              ) : null}
-
-              <TouchableOpacity style={styles.nextBtn} onPress={handleResetForNext}>
-                <LinearGradient
-                  colors={["#059669", "#047857"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.gradientBtnContent}
-                >
-                  <MaterialCommunityIcons name="arrow-right-circle" size={18} color="#FFFFFF" />
-                  <Text style={styles.nextBtnText}>Ready for Next Card</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          ) : step === "ERROR" ? (
-            <View style={styles.errorBox}>
-              <MaterialCommunityIcons name="alert-circle-outline" size={32} color="#DC2626" />
-              <Text style={styles.errorTitle}>NFC Operation Failed</Text>
-              <Text style={styles.errorDesc}>{errorMessage}</Text>
-
-              <View style={styles.errorActions}>
-                <TouchableOpacity style={styles.retryBtn} onPress={handleStartWrite}>
-                  <Text style={styles.retryBtnText}>Retry Operation</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.dismissBtn} onPress={handleResetForNext}>
-                  <Text style={styles.dismissBtnText}>Dismiss</Text>
-                </TouchableOpacity>
+                <Text style={styles.validatedNoticeUrl} numberOfLines={1}>
+                  {cardUrl}
+                </Text>
               </View>
             </View>
           ) : null}
         </View>
-      </View>
+      )}
 
-      {/* Section 11: Mandatory In-App Verification Checklist (11 Items) */}
-      <View style={styles.checklistCard}>
-        <View style={styles.checklistHeader}>
-          <View style={styles.checklistTitleRow}>
-            <MaterialCommunityIcons
-              name={allRequiredPassed ? "check-decagram" : "playlist-check"}
-              size={20}
-              color={allRequiredPassed ? "#059669" : "#2563EB"}
-            />
-            <Text style={styles.checklistTitle}>In-App Verification Checklist</Text>
-          </View>
-          <View
-            style={[
-              styles.checklistStatusPill,
-              allRequiredPassed
-                ? styles.checklistStatusPillSuccess
-                : styles.checklistStatusPillPending
-            ]}
-          >
-            <Text
-              style={[
-                styles.checklistStatusPillText,
-                allRequiredPassed
-                  ? styles.checklistStatusPillTextSuccess
-                  : styles.checklistStatusPillTextPending
-              ]}
+      {/* ACTIVE CARD INFO BANNER */}
+      {cardUrl ? (
+        <View style={styles.cardInfoBanner}>
+          <View style={styles.bannerHeader}>
+            <View style={styles.bannerIconBox}>
+              <MaterialCommunityIcons name="credit-card-outline" size={20} color="#2563EB" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.bannerCardId}>{cardId}</Text>
+              <Text style={styles.bannerOrderText}>
+                {orderNumber ? `Order: ${orderNumber}` : "Manual Entry"} •{" "}
+                {policyHolderName || "SANASA Card"}
+              </Text>
+            </View>
+            {/* Half-screen preview button */}
+            <TouchableOpacity
+              style={styles.previewAccessBtn}
+              onPress={() => {
+                setShowPreviewModal(true);
+                updateChecklistItem(9, "Passed", "Loaded in-app");
+              }}
             >
-              {allRequiredPassed ? "Verified" : "Pending Checks"}
+              <MaterialCommunityIcons name="eye-outline" size={14} color="#2563EB" />
+              <Text style={styles.previewAccessBtnText}>Preview</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.bannerUrlBox}>
+            <Text style={styles.bannerUrlLabel}>Target Access URL:</Text>
+            <Text style={styles.bannerUrlText} numberOfLines={2}>
+              {maskUrlToken(cardUrl)}
             </Text>
           </View>
         </View>
+      ) : inputMode === "website" ? (
+        <View style={styles.waitingWebsiteCard}>
+          <MaterialCommunityIcons name="cellphone-wireless" size={36} color="#94A3B8" />
+          <Text style={styles.waitingWebsiteTitle}>Awaiting Job from Website</Text>
+          <Text style={styles.waitingWebsiteDesc}>
+            Log into the SANASA desktop staff portal, click "Transfer to NFC Writer" on any approved card request, and it will appear here automatically.
+          </Text>
+        </View>
+      ) : null}
 
-        <Text style={styles.checklistSubtitle}>
-          Real-time technical tracking across physical antenna write & SANASA backend authentication.
-        </Text>
+      {/* PROMINENT "TAP YOUR NFC CARD" ANTENNA RADAR (Section 10) */}
+      {cardUrl && (
+        <View style={styles.tapAntennaCard}>
+          <Text style={styles.tapTitle}>{t("tapCardTitle")}</Text>
+          <Text style={styles.tapDesc}>{t("tapCardDesc")}</Text>
 
-        <View style={styles.checklistItemsList}>
+          {/* Radar Antenna Graphic */}
+          <View style={styles.radarContainer}>
+            <Animated.View
+              style={[
+                styles.radarPulseRing,
+                {
+                  transform: [{ scale: pulseAnim }],
+                  opacity: pulseOpacity
+                }
+              ]}
+            />
+            <View style={styles.radarCenterCircle}>
+              <MaterialCommunityIcons
+                name="nfc"
+                size={44}
+                color={detectedCap ? "#059669" : "#2563EB"}
+              />
+            </View>
+          </View>
+
+          {/* Tag Detection Trigger / Status */}
+          <View style={styles.antennaActions}>
+            {!detectedCap ? (
+              <TouchableOpacity
+                style={styles.scanAntennaBtn}
+                onPress={handleScanAndDetectTag}
+                disabled={capChecking}
+                activeOpacity={0.8}
+              >
+                {capChecking ? (
+                  <View style={styles.btnRow}>
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <Text style={styles.scanAntennaBtnText}>{t("statusChecking")}</Text>
+                  </View>
+                ) : (
+                  <View style={styles.btnRow}>
+                    <MaterialCommunityIcons name="radar" size={18} color="#FFFFFF" />
+                    <Text style={styles.scanAntennaBtnText}>Scan & Inspect NFC Tag</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.detectedBanner}>
+                <MaterialCommunityIcons name="check-circle" size={18} color="#059669" />
+                <Text style={styles.detectedBannerText}>
+                  Tag Detected! UID: {detectedCap.tagUid} ({detectedCap.maxSize}b)
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      )}
+
+      {/* DETECTED TAG CAPABILITIES INSPECTOR CARD (Section 9 & 10) */}
+      {detectedCap && (
+        <View style={styles.capCard}>
+          <View style={styles.capHeader}>
+            <MaterialCommunityIcons name="chip" size={18} color="#2563EB" />
+            <Text style={styles.capTitle}>Physical Tag Capabilities</Text>
+          </View>
+
+          <View style={styles.capGrid}>
+            <View style={styles.capGridItem}>
+              <Text style={styles.capLabel}>{t("uidLabel")}</Text>
+              <Text style={styles.capValueMono}>{detectedCap.tagUid || "Unknown"}</Text>
+            </View>
+            <View style={styles.capGridItem}>
+              <Text style={styles.capLabel}>{t("capacityLabel")}</Text>
+              <Text style={styles.capValue}>{detectedCap.maxSize} bytes</Text>
+            </View>
+            <View style={styles.capGridItem}>
+              <Text style={styles.capLabel}>{t("writableLabel")}</Text>
+              <Text
+                style={[
+                  styles.capValue,
+                  { color: detectedCap.isWritable ? "#059669" : "#DC2626" }
+                ]}
+              >
+                {detectedCap.isWritable ? t("writableYes") : t("writableNo")}
+              </Text>
+            </View>
+            <View style={styles.capGridItem}>
+              <Text style={styles.capLabel}>NDEF Status</Text>
+              <Text
+                style={[
+                  styles.capValue,
+                  { color: detectedCap.ndefSupported ? "#059669" : "#DC2626" }
+                ]}
+              >
+                {detectedCap.ndefSupported ? "Standard Supported" : "Non-NDEF"}
+              </Text>
+            </View>
+          </View>
+
+          {/* PRIMARY ACTION BUTTON: "Confirm & Write NFC" (Section 10) */}
+          <TouchableOpacity
+            style={[
+              styles.confirmWriteBtn,
+              (!detectedCap.isWritable || !detectedCap.canFitUrl || writeLocked) &&
+                styles.confirmWriteBtnDisabled
+            ]}
+            onPress={() => setShowConfirmWriteModal(true)}
+            disabled={!detectedCap.isWritable || !detectedCap.canFitUrl || writeLocked}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={
+                detectedCap.isWritable && detectedCap.canFitUrl
+                  ? ["#059669", "#047857"]
+                  : ["#94A3B8", "#64748B"]
+              }
+              style={styles.confirmWriteGradient}
+            >
+              <MaterialCommunityIcons name="nfc" size={22} color="#FFFFFF" />
+              <Text style={styles.confirmWriteText}>{t("confirmWriteBtn")}</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* WRITING / SUCCESS / ERROR STATES */}
+      {step === "WRITING_TAG" || step === "VERIFYING_READBACK" ? (
+        <View style={styles.statusBoxActive}>
+          <ActivityIndicator size="large" color="#2563EB" />
+          <Text style={styles.statusBoxTitle}>
+            {step === "WRITING_TAG" ? t("writingUrl") : t("verifyingReadback")}
+          </Text>
+          <Text style={styles.statusBoxPrompt}>{t("writingPrompt")}</Text>
+        </View>
+      ) : null}
+
+      {step === "SUCCESS" && (
+        <View style={styles.successCard}>
+          <View style={styles.successIconCircle}>
+            <MaterialCommunityIcons name="check-bold" size={32} color="#FFFFFF" />
+          </View>
+          <Text style={styles.successTitle}>{t("writtenSuccess")}</Text>
+          <Text style={styles.successSub}>
+            Physical tag {detectedUid} programmed and verified with SANASA token registry.
+          </Text>
+          <TouchableOpacity style={styles.nextCardBtn} onPress={handleResetForNext}>
+            <MaterialCommunityIcons name="arrow-right-circle" size={18} color="#FFFFFF" />
+            <Text style={styles.nextCardBtnText}>{t("readyNextCard")}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {step === "ERROR" && errorMessage ? (
+        <View style={styles.errorCard}>
+          <MaterialCommunityIcons name="alert-circle" size={24} color="#DC2626" />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.errorTitle}>Write Operation Failed</Text>
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          </View>
+          <TouchableOpacity style={styles.retryBtn} onPress={handleScanAndDetectTag}>
+            <Text style={styles.retryBtnText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
+      {/* PER-CARD SETTINGS PANEL WITH QUESTION-MARK HELP POPUPS (Section 11) */}
+      <View style={styles.settingsCard}>
+        <TouchableOpacity
+          style={styles.settingsHeader}
+          onPress={() => setShowSettingsPanel(!showSettingsPanel)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.settingsHeaderLeft}>
+            <MaterialCommunityIcons name="tune-variant" size={18} color="#2563EB" />
+            <Text style={styles.settingsTitle}>{t("settingsTitle")}</Text>
+          </View>
+          <MaterialCommunityIcons
+            name={showSettingsPanel ? "chevron-up" : "chevron-down"}
+            size={20}
+            color="#64748B"
+          />
+        </TouchableOpacity>
+
+        {showSettingsPanel && (
+          <View style={styles.settingsBody}>
+            {/* Setting 1: Read-back Verification */}
+            <View style={styles.settingRow}>
+              <View style={styles.settingInfoCol}>
+                <View style={styles.settingTitleRow}>
+                  <Text style={styles.settingLabel}>{t("readBackSetting")}</Text>
+                  <TouchableOpacity
+                    onPress={() => openHelpModal("readBack")}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <MaterialCommunityIcons
+                      name="help-circle-outline"
+                      size={16}
+                      color="#2563EB"
+                    />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.settingDesc}>{t("readBackDesc")}</Text>
+              </View>
+              <Switch
+                value={strictReadBack}
+                onValueChange={setStrictReadBack}
+                thumbColor="#FFFFFF"
+                trackColor={{ false: "#CBD5E1", true: "#059669" }}
+              />
+            </View>
+
+            {/* Setting 2: Allow Overwrite */}
+            <View style={styles.settingRow}>
+              <View style={styles.settingInfoCol}>
+                <View style={styles.settingTitleRow}>
+                  <Text style={styles.settingLabel}>{t("overwriteSetting")}</Text>
+                  <TouchableOpacity
+                    onPress={() => openHelpModal("overwrite")}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <MaterialCommunityIcons
+                      name="help-circle-outline"
+                      size={16}
+                      color="#2563EB"
+                    />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.settingDesc}>{t("overwriteDesc")}</Text>
+              </View>
+              <Switch
+                value={allowOverwrite}
+                onValueChange={setAllowOverwrite}
+                thumbColor="#FFFFFF"
+                trackColor={{ false: "#CBD5E1", true: "#059669" }}
+              />
+            </View>
+
+            {/* Setting 3: Permanent Chip Lock */}
+            <View style={styles.settingRow}>
+              <View style={styles.settingInfoCol}>
+                <View style={styles.settingTitleRow}>
+                  <Text style={[styles.settingLabel, { color: "#DC2626" }]}>
+                    {t("lockSetting")}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => openHelpModal("permanentLock")}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <MaterialCommunityIcons
+                      name="help-circle-outline"
+                      size={16}
+                      color="#DC2626"
+                    />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.settingDesc}>{t("lockDesc")}</Text>
+              </View>
+              <Switch
+                value={permanentLock}
+                onValueChange={handlePermanentLockToggle}
+                thumbColor="#FFFFFF"
+                trackColor={{ false: "#CBD5E1", true: "#DC2626" }}
+              />
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* VERIFICATION CHECKLIST (11 Items) (Section 12) */}
+      <View style={styles.checklistCard}>
+        <View style={styles.checkHeader}>
+          <MaterialCommunityIcons name="clipboard-check-outline" size={18} color="#2563EB" />
+          <Text style={styles.checkTitle}>End-to-End Verification Checklist</Text>
+        </View>
+
+        <View style={styles.checkListWrap}>
           {checklist.map((item) => (
-            <View key={item.id} style={styles.checklistItemRow}>
+            <View key={item.id} style={styles.checkItemRow}>
               <View style={styles.checkItemLeft}>
-                <Text style={styles.checkItemNumber}>{item.id}.</Text>
-                <View style={styles.checkItemTextCol}>
-                  <Text style={styles.checkItemLabel}>{item.label}</Text>
+                <Text style={styles.checkItemNum}>{item.id}.</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.checkItemText}>{item.label}</Text>
                   {item.detail ? (
-                    <Text style={styles.checkItemDetail}>{item.detail}</Text>
+                    <Text style={styles.checkItemDetailText}>{item.detail}</Text>
                   ) : null}
                 </View>
               </View>
@@ -1243,26 +1319,25 @@ export default function NfcWriterScreen() {
 
         {cardId && (
           <TouchableOpacity
-            style={styles.retryAllChecksBtn}
+            style={styles.retryBackendBtn}
             onPress={handleRetryBackendVerification}
+            activeOpacity={0.8}
           >
             <MaterialCommunityIcons name="shield-sync-outline" size={16} color="#2563EB" />
-            <Text style={styles.retryAllChecksText}>Re-run Backend & Token Checks</Text>
+            <Text style={styles.retryBackendBtnText}>{t("retryBackendChecks")}</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Auxiliary Engineering Tools */}
-      <View style={styles.toolCard}>
-        <View style={styles.toolHeader}>
+      {/* ANTENNA DIAGNOSTIC TOOL */}
+      <View style={styles.diagCard}>
+        <View style={styles.diagHeader}>
           <MaterialCommunityIcons name="tools" size={18} color="#2563EB" />
-          <Text style={styles.toolTitle}>NFC Antenna Diagnostic Tool</Text>
+          <Text style={styles.diagTitle}>{t("antennaDiagTitle")}</Text>
         </View>
-        <Text style={styles.toolDesc}>
-          Test reading any physical card or fob to inspect its UID and NDEF memory structure without writing data.
-        </Text>
+        <Text style={styles.diagDesc}>{t("antennaDiagDesc")}</Text>
         <TouchableOpacity
-          style={styles.toolBtn}
+          style={styles.diagBtn}
           onPress={handleTestTagScan}
           disabled={diagReading}
           activeOpacity={0.8}
@@ -1270,113 +1345,192 @@ export default function NfcWriterScreen() {
           {diagReading ? (
             <ActivityIndicator size="small" color="#2563EB" />
           ) : (
-            <>
-              <MaterialCommunityIcons name="credit-card-scan-outline" size={18} color="#2563EB" />
-              <Text style={styles.toolBtnText}>Run Tag Diagnostic Scan</Text>
-            </>
+            <View style={styles.btnRow}>
+              <MaterialCommunityIcons name="scan-helper" size={16} color="#2563EB" />
+              <Text style={styles.diagBtnText}>{t("scanDiagBtn")}</Text>
+            </View>
           )}
         </TouchableOpacity>
       </View>
 
-      {/* Section 10: In-App Half-Screen WebView Modal */}
+      {/* ========================================================================= */}
+      {/* MODAL 1: PHYSICAL WRITE CONFIRMATION POPUP (Section 10) */}
+      {/* ========================================================================= */}
+      <Modal
+        visible={showConfirmWriteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowConfirmWriteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.confirmModalBox}>
+            <View style={styles.confirmModalIconCircle}>
+              <MaterialCommunityIcons name="nfc" size={32} color="#059669" />
+            </View>
+            <Text style={styles.confirmModalTitle}>Confirm Physical NFC Write</Text>
+            <Text style={styles.confirmModalPrompt}>{t("writingPrompt")}</Text>
+
+            <View style={styles.confirmModalDetails}>
+              <View style={styles.confirmModalRow}>
+                <Text style={styles.confirmModalLabel}>Card UID:</Text>
+                <Text style={styles.confirmModalVal}>{detectedCap?.tagUid}</Text>
+              </View>
+              <View style={styles.confirmModalRow}>
+                <Text style={styles.confirmModalLabel}>Chip Capacity:</Text>
+                <Text style={styles.confirmModalVal}>{detectedCap?.maxSize} bytes</Text>
+              </View>
+              <View style={styles.confirmModalRow}>
+                <Text style={styles.confirmModalLabel}>Read-Back Check:</Text>
+                <Text style={styles.confirmModalVal}>
+                  {strictReadBack ? "Strict Active" : "Disabled"}
+                </Text>
+              </View>
+              {permanentLock && (
+                <View style={styles.confirmModalRow}>
+                  <Text style={[styles.confirmModalLabel, { color: "#DC2626" }]}>Lock:</Text>
+                  <Text style={[styles.confirmModalVal, { color: "#DC2626" }]}>
+                    PERMANENT IRREVERSIBLE LOCK
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.confirmModalBtnRow}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setShowConfirmWriteModal(false)}
+              >
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalConfirmBtn}
+                onPress={handleConfirmAndWrite}
+              >
+                <Text style={styles.modalConfirmBtnText}>Start Writing</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ========================================================================= */}
+      {/* MODAL 2: SETTINGS HELP POPUP / BOTTOM SHEET (Section 11) */}
+      {/* ========================================================================= */}
+      <Modal
+        visible={helpModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setHelpModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.helpModalBox}>
+            <View style={styles.helpHeader}>
+              <View style={styles.helpIconCircle}>
+                <MaterialCommunityIcons name="help" size={20} color="#2563EB" />
+              </View>
+              <Text style={styles.helpTitle}>{helpInfo.title}</Text>
+            </View>
+
+            <View style={styles.helpSection}>
+              <Text style={styles.helpSectionHeading}>What It Does:</Text>
+              <Text style={styles.helpSectionText}>{helpInfo.description}</Text>
+            </View>
+
+            <View style={styles.helpSection}>
+              <Text style={styles.helpSectionHeading}>Risks & Impact:</Text>
+              <Text style={styles.helpSectionText}>{helpInfo.risks}</Text>
+            </View>
+
+            <View style={styles.helpSection}>
+              <Text style={styles.helpSectionHeading}>Chip Compatibility:</Text>
+              <Text style={styles.helpSectionText}>{helpInfo.compatibility}</Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.helpCloseBtn}
+              onPress={() => setHelpModalVisible(false)}
+            >
+              <Text style={styles.helpCloseBtnText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ========================================================================= */}
+      {/* MODAL 3: IN-APP HALF-SCREEN WEBVIEW PREVIEW (Section 13) */}
+      {/* ========================================================================= */}
       <Modal
         visible={showPreviewModal}
-        transparent={true}
+        transparent
         animationType="slide"
         onRequestClose={() => setShowPreviewModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View
-            style={[
-              styles.modalSheet,
-              { height: previewExpanded ? SCREEN_HEIGHT * 0.92 : SCREEN_HEIGHT * 0.55 }
-            ]}
-          >
-            {/* Modal Header */}
-            <View style={styles.modalHeader}>
-              <View style={styles.modalHeaderLeft}>
-                <MaterialCommunityIcons name="shield-check" size={20} color="#059669" />
+        <View style={styles.previewBackdrop}>
+          <View style={styles.previewSheet}>
+            {/* Sheet Header */}
+            <View style={styles.previewSheetHeader}>
+              <View style={styles.previewSheetHeaderLeft}>
+                <MaterialCommunityIcons name="web" size={20} color="#2563EB" />
                 <View>
-                  <Text style={styles.modalTitle}>SANASA Driver Portal Preview</Text>
-                  <Text style={styles.modalSubtitle}>
-                    Vehicle: {vehiclePlate || "Plate Assigned"} • Card: {cardId}
+                  <Text style={styles.previewSheetTitle}>{t("previewAccess")}</Text>
+                  <Text style={styles.previewSheetSub}>
+                    {cardId} • Secure Driver Gateway
                   </Text>
                 </View>
               </View>
 
-              <View style={styles.modalControls}>
-                <TouchableOpacity
-                  style={styles.modalControlBtn}
-                  onPress={() => setPreviewExpanded(!previewExpanded)}
-                >
-                  <MaterialCommunityIcons
-                    name={previewExpanded ? "arrow-collapse" : "arrow-expand"}
-                    size={18}
-                    color="#475569"
-                  />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.modalCloseBtn}
-                  onPress={() => setShowPreviewModal(false)}
-                >
-                  <MaterialCommunityIcons name="close" size={20} color="#0F2942" />
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={styles.previewCloseBtn}
+                onPress={() => setShowPreviewModal(false)}
+                activeOpacity={0.7}
+              >
+                <MaterialCommunityIcons name="close" size={20} color="#64748B" />
+              </TouchableOpacity>
             </View>
 
-            {/* WebView Body */}
-            <View style={styles.webViewContainer}>
+            {/* WebView Component */}
+            <View style={styles.previewWebContainer}>
+              {cardUrl ? (
+                <WebView
+                  source={{ uri: cardUrl }}
+                  onLoadStart={() => setPreviewLoading(true)}
+                  onLoadEnd={() => setPreviewLoading(false)}
+                  onError={(e) => {
+                    setPreviewLoading(false);
+                    setPreviewLoadError(e.nativeEvent.description || "Failed to load page");
+                  }}
+                  style={styles.webView}
+                />
+              ) : null}
+
               {previewLoading && (
-                <View style={styles.webViewLoader}>
+                <View style={styles.previewLoadingOverlay}>
                   <ActivityIndicator size="large" color="#2563EB" />
-                  <Text style={styles.webViewLoaderText}>Loading limited-access driver view...</Text>
+                  <Text style={styles.previewLoadingText}>Loading driver access view...</Text>
                 </View>
               )}
 
-              {previewLoadError ? (
-                <View style={styles.previewErrorWrap}>
-                  <MaterialCommunityIcons name="web-remove" size={40} color="#DC2626" />
-                  <Text style={styles.previewErrorTitle}>Preview Failed to Load</Text>
-                  <Text style={styles.previewErrorText}>{previewLoadError}</Text>
-                  <TouchableOpacity
-                    style={styles.previewReloadBtn}
-                    onPress={() => {
-                      setPreviewLoadError(null);
-                      webViewRef.current?.reload();
-                    }}
-                  >
-                    <Text style={styles.previewReloadBtnText}>Reload Page</Text>
-                  </TouchableOpacity>
+              {previewLoadError && (
+                <View style={styles.previewErrorOverlay}>
+                  <MaterialCommunityIcons name="alert-circle-outline" size={32} color="#DC2626" />
+                  <Text style={styles.previewErrorTitle}>Could not load page</Text>
+                  <Text style={styles.previewErrorSub}>{previewLoadError}</Text>
                 </View>
-              ) : (
-                <WebViewComponent
-                  ref={webViewRef}
-                  source={{ uri: cardUrl }}
-                  style={styles.webView}
-                  originWhitelist={["*"]}
-                  onLoadStart={() => setPreviewLoading(true)}
-                  onLoadEnd={() => setPreviewLoading(false)}
-                  onError={(syntheticEvent: any) => {
-                    const { nativeEvent } = syntheticEvent;
-                    setPreviewLoading(false);
-                    setPreviewLoadError(
-                      nativeEvent?.description || "Network connection error while loading page."
-                    );
-                  }}
-                  onShouldStartLoadWithRequest={(request: any) => {
-                    // Security requirement: Restrict navigation to valid SANASA origins or driver paths
-                    const url = String(request?.url || "").toLowerCase();
-                    const isAllowed =
-                      url.includes("/driver-access/") ||
-                      url.includes("localhost") ||
-                      url.includes("10.0.2.2") ||
-                      url.includes("192.168.") ||
-                      url.includes("sanasa");
-                    return isAllowed;
-                  }}
-                />
               )}
+            </View>
+
+            {/* Sheet Footer */}
+            <View style={styles.previewSheetFooter}>
+              <Text style={styles.previewSheetFooterText}>
+                Closing preview does not modify card writing progress.
+              </Text>
+              <TouchableOpacity
+                style={styles.previewDoneBtn}
+                onPress={() => setShowPreviewModal(false)}
+              >
+                <Text style={styles.previewDoneBtnText}>{t("closePreview")}</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -1392,965 +1546,965 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingBottom: 40
+    paddingBottom: 40,
+    gap: 16
   },
-  // Stepper Header
-  stepperContainer: {
+  btnRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#FFFFFF",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#EEF2F6",
-    shadowColor: "#64748B",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2
-  },
-  stepItem: {
-    alignItems: "center",
-    gap: 4
-  },
-  stepDot: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#F1F5F9",
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  stepDotActive: {
-    backgroundColor: "#2563EB",
-    borderColor: "#2563EB"
-  },
-  stepDotSuccess: {
-    backgroundColor: "#059669",
-    borderColor: "#059669"
-  },
-  stepDotNum: {
-    color: "#64748B",
-    fontSize: 11,
-    fontWeight: "800"
-  },
-  stepDotNumActive: {
-    color: "#FFFFFF"
-  },
-  stepLabel: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: "#94A3B8"
-  },
-  stepLabelActive: {
-    color: "#2563EB",
-    fontWeight: "700"
-  },
-  stepLabelSuccess: {
-    color: "#059669",
-    fontWeight: "700"
-  },
-  stepLine: {
-    flex: 1,
-    height: 2,
-    backgroundColor: "#E2E8F0",
-    marginHorizontal: 4,
-    marginBottom: 16
-  },
-  stepLineActive: {
-    backgroundColor: "#2563EB"
-  },
-
-  // Banners
-  hardwareBannerReady: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#ECFDF5",
-    borderWidth: 1,
-    borderColor: "#A7F3D0",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 8,
-    marginBottom: 16
-  },
-  bannerTextReady: {
-    color: "#059669",
-    fontSize: 12,
-    fontWeight: "700"
-  },
-  hardwareBannerInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F0F9FF",
-    borderWidth: 1,
-    borderColor: "#BAE6FD",
-    borderRadius: 12,
-    padding: 12,
-    gap: 10,
-    marginBottom: 16
-  },
-  bannerTitleInfo: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#0369A1"
-  },
-  bannerDescInfo: {
-    fontSize: 10.5,
-    color: "#0284C7",
-    marginTop: 2
-  },
-  hardwareBannerWarn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFBEB",
-    borderWidth: 1,
-    borderColor: "#FDE68A",
-    borderRadius: 12,
-    padding: 12,
-    gap: 10,
-    marginBottom: 16
-  },
-  bannerTitleWarn: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#92400E"
-  },
-  bannerDescWarn: {
-    fontSize: 10.5,
-    color: "#B45309",
-    marginTop: 2
-  },
-  openSettingsBtn: {
-    backgroundColor: "#D97706",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8
-  },
-  openSettingsBtnText: {
-    color: "#FFFFFF",
-    fontSize: 11,
-    fontWeight: "700"
-  },
-  hardwareBannerError: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FEF2F2",
-    borderWidth: 1,
-    borderColor: "#FECACA",
-    borderRadius: 12,
-    padding: 12,
-    gap: 10,
-    marginBottom: 16
-  },
-  hardwareBannerTextWrap: {
-    flex: 1
-  },
-  bannerTitleError: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#991B1B"
-  },
-  bannerDescError: {
-    fontSize: 10.5,
-    color: "#B91C1C",
-    marginTop: 2
-  },
-
-  // Main Card
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: "#EEF2F6",
-    shadowColor: "#64748B",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3
-  },
-  antennaGuideBox: {
-    alignItems: "center",
-    paddingVertical: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9"
-  },
-  radarWrapper: {
-    width: 100,
-    height: 100,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 14
-  },
-  pulseRing: {
-    position: "absolute",
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    borderWidth: 2,
-    borderColor: "#2563EB",
-    backgroundColor: "rgba(37, 99, 235, 0.12)"
-  },
-  radarRingOuter: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#EFF6FF",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  radarRingInner: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#2563EB",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 3
-  },
-  antennaInstruction: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#0F2942",
-    textAlign: "center"
-  },
-  antennaSubInstruction: {
-    fontSize: 11,
-    color: "#64748B",
-    marginTop: 4,
-    textAlign: "center"
-  },
-
-  // Selected Card Info
-  cardInfoBox: {
-    backgroundColor: "#F8FAFC",
-    borderRadius: 14,
-    padding: 14,
-    marginVertical: 16,
-    borderWidth: 1,
-    borderColor: "#EEF2F6",
     gap: 8
   },
-  cardInfoRow: {
+  modeTabsWrap: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center"
-  },
-  infoLabel: {
-    fontSize: 11,
-    color: "#64748B"
-  },
-  infoCardId: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#0F2942",
-    letterSpacing: 0.3
-  },
-  infoVal: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#334155"
-  },
-  vehicleBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#EFF6FF",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6
-  },
-  vehicleBadgeText: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#2563EB"
-  },
-  branchPill: {
-    backgroundColor: "#EFF6FF",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6
-  },
-  branchPillText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#2563EB"
-  },
-  infoMono: {
-    fontSize: 10,
-    color: "#475569",
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
-    maxWidth: 200
-  },
-  noCardBox: {
-    alignItems: "center",
-    paddingVertical: 24,
-    gap: 6
-  },
-  noCardText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#475569"
-  },
-  noCardSubtext: {
-    fontSize: 11,
-    color: "#94A3B8",
-    textAlign: "center",
-    paddingHorizontal: 20
-  },
-
-  // Per-Card Settings Panel
-  settingsPanel: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#E2E8F0",
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    marginBottom: 16,
-    overflow: "hidden"
+    padding: 4
   },
-  settingsPanelHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 12,
-    backgroundColor: "#F1F5F9"
-  },
-  settingsTitleWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6
-  },
-  settingsPanelTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#0F2942"
-  },
-  settingsBody: {
-    padding: 12,
-    gap: 12
-  },
-  capGrid: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    backgroundColor: "#FFFFFF",
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#E2E8F0"
-  },
-  capItem: {
-    alignItems: "center"
-  },
-  capLabel: {
-    fontSize: 9.5,
-    color: "#64748B",
-    marginBottom: 2
-  },
-  capVal: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#0F2942"
-  },
-  checkCapBtn: {
+  modeTabBtn: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10
+  },
+  modeTabBtnActive: {
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2
+  },
+  modeTabText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#64748B"
+  },
+  modeTabTextActive: {
+    color: "#1E40AF",
+    fontWeight: "bold"
+  },
+  manualCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    gap: 12
+  },
+  manualHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  manualTitle: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#0F172A"
+  },
+  manualDesc: {
+    fontSize: 11,
+    color: "#64748B",
+    lineHeight: 16
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
+    paddingHorizontal: 12
+  },
+  manualInput: {
+    flex: 1,
+    height: 44,
+    fontSize: 13,
+    color: "#0F172A"
+  },
+  inputClearBtn: {
+    padding: 6
+  },
+  errorNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#FEF2F2",
+    padding: 8,
+    borderRadius: 8
+  },
+  errorNoticeText: {
+    fontSize: 11,
+    color: "#DC2626",
+    flex: 1
+  },
+  manualActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10
+  },
+  pasteBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#F1F5F9",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10
+  },
+  pasteBtnText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#334155"
+  },
+  validateBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "#2563EB",
+    paddingVertical: 10,
+    borderRadius: 10
+  },
+  validateBtnText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#FFFFFF"
+  },
+  validatedNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#ECFDF5",
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+    padding: 10,
+    borderRadius: 10
+  },
+  validatedNoticeTitle: {
+    fontSize: 11,
+    fontWeight: "bold",
+    color: "#065F46"
+  },
+  validatedNoticeUrl: {
+    fontSize: 10,
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    color: "#047857"
+  },
+  cardInfoBanner: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    gap: 10
+  },
+  bannerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10
+  },
+  bannerIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "#EFF6FF",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  bannerCardId: {
+    fontSize: 14,
+    fontWeight: "bold",
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    color: "#0F172A"
+  },
+  bannerOrderText: {
+    fontSize: 11,
+    color: "#64748B",
+    marginTop: 2
+  },
+  previewAccessBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     backgroundColor: "#EFF6FF",
     borderWidth: 1,
     borderColor: "#BFDBFE",
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 8
   },
-  checkCapBtnText: {
-    color: "#2563EB",
-    fontSize: 11.5,
-    fontWeight: "700"
+  previewAccessBtnText: {
+    fontSize: 11,
+    fontWeight: "bold",
+    color: "#1E40AF"
+  },
+  bannerUrlBox: {
+    backgroundColor: "#F8FAFC",
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#F1F5F9"
+  },
+  bannerUrlLabel: {
+    fontSize: 10,
+    fontWeight: "bold",
+    color: "#64748B",
+    marginBottom: 2
+  },
+  bannerUrlText: {
+    fontSize: 11,
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    color: "#334155"
+  },
+  waitingWebsiteCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    gap: 8
+  },
+  waitingWebsiteTitle: {
+    fontSize: 15,
+    fontWeight: "bold",
+    color: "#334155"
+  },
+  waitingWebsiteDesc: {
+    fontSize: 12,
+    color: "#94A3B8",
+    textAlign: "center",
+    lineHeight: 18
+  },
+  tapAntennaCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3
+  },
+  tapTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#0F172A",
+    marginBottom: 4
+  },
+  tapDesc: {
+    fontSize: 12,
+    color: "#64748B",
+    textAlign: "center",
+    lineHeight: 18,
+    marginBottom: 16
+  },
+  radarContainer: {
+    width: 140,
+    height: 140,
+    alignItems: "center",
+    justifyContent: "center",
+    marginVertical: 10,
+    position: "relative"
+  },
+  radarPulseRing: {
+    position: "absolute",
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: "rgba(37, 99, 235, 0.2)",
+    borderWidth: 2,
+    borderColor: "#2563EB"
+  },
+  radarCenterCircle: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: "#F1F5F9",
+    borderWidth: 2,
+    borderColor: "#E2E8F0",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4
+  },
+  antennaActions: {
+    width: "100%",
+    marginTop: 14
+  },
+  scanAntennaBtn: {
+    backgroundColor: "#2563EB",
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  scanAntennaBtnText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "bold"
+  },
+  detectedBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#ECFDF5",
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10
+  },
+  detectedBannerText: {
+    color: "#065F46",
+    fontSize: 12,
+    fontWeight: "bold"
+  },
+  capCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    gap: 14
+  },
+  capHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9"
+  },
+  capTitle: {
+    fontSize: 13,
+    fontWeight: "bold",
+    color: "#0F172A"
+  },
+  capGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10
+  },
+  capGridItem: {
+    flex: 1,
+    minWidth: "45%",
+    backgroundColor: "#F8FAFC",
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#F1F5F9"
+  },
+  capLabel: {
+    fontSize: 10,
+    color: "#64748B",
+    fontWeight: "600",
+    marginBottom: 2
+  },
+  capValue: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#1E293B"
+  },
+  capValueMono: {
+    fontSize: 11,
+    fontWeight: "bold",
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    color: "#1E40AF"
+  },
+  confirmWriteBtn: {
+    borderRadius: 14,
+    overflow: "hidden",
+    marginTop: 4
+  },
+  confirmWriteBtnDisabled: {
+    opacity: 0.6
+  },
+  confirmWriteGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14
+  },
+  confirmWriteText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "bold"
+  },
+  statusBoxActive: {
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1.5,
+    borderColor: "#BFDBFE",
+    borderRadius: 16,
+    padding: 20,
+    alignItems: "center",
+    gap: 8
+  },
+  statusBoxTitle: {
+    fontSize: 15,
+    fontWeight: "bold",
+    color: "#1E40AF",
+    marginTop: 4
+  },
+  statusBoxPrompt: {
+    fontSize: 12,
+    color: "#3B82F6",
+    textAlign: "center"
+  },
+  successCard: {
+    backgroundColor: "#ECFDF5",
+    borderWidth: 1.5,
+    borderColor: "#A7F3D0",
+    borderRadius: 18,
+    padding: 22,
+    alignItems: "center",
+    gap: 10
+  },
+  successIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#059669",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  successTitle: {
+    fontSize: 17,
+    fontWeight: "bold",
+    color: "#065F46"
+  },
+  successSub: {
+    fontSize: 12,
+    color: "#047857",
+    textAlign: "center",
+    lineHeight: 18
+  },
+  nextCardBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#059669",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    marginTop: 6
+  },
+  nextCardBtnText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "bold"
+  },
+  errorCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    padding: 14,
+    borderRadius: 14
+  },
+  errorTitle: {
+    fontSize: 13,
+    fontWeight: "bold",
+    color: "#DC2626"
+  },
+  errorText: {
+    fontSize: 11,
+    color: "#B91C1C",
+    marginTop: 2
+  },
+  retryBtn: {
+    backgroundColor: "#DC2626",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8
+  },
+  retryBtnText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "bold"
+  },
+  settingsCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    overflow: "hidden"
+  },
+  settingsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 14,
+    backgroundColor: "#F8FAFC"
+  },
+  settingsHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  settingsTitle: {
+    fontSize: 13,
+    fontWeight: "bold",
+    color: "#0F172A"
+  },
+  settingsBody: {
+    padding: 14,
+    gap: 14,
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0"
   },
   settingRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 4
+    gap: 12
   },
-  settingRowWarning: {
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: "#E2E8F0"
+  settingInfoCol: {
+    flex: 1
   },
-  settingTextWrap: {
-    flex: 1,
-    paddingRight: 12
-  },
-  settingWarningHeader: {
+  settingTitleRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6
   },
-  settingName: {
-    fontSize: 11.5,
-    fontWeight: "700",
+  settingLabel: {
+    fontSize: 12,
+    fontWeight: "bold",
     color: "#1E293B"
   },
   settingDesc: {
+    fontSize: 11,
+    color: "#64748B",
+    marginTop: 2,
+    lineHeight: 15
+  },
+  checklistCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    gap: 12
+  },
+  checkHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9"
+  },
+  checkTitle: {
+    fontSize: 13,
+    fontWeight: "bold",
+    color: "#0F172A"
+  },
+  checkListWrap: {
+    gap: 8
+  },
+  checkItemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F8FAFC"
+  },
+  checkItemLeft: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    flex: 1,
+    marginRight: 8
+  },
+  checkItemNum: {
+    fontSize: 11,
+    fontWeight: "bold",
+    color: "#64748B",
+    width: 18
+  },
+  checkItemText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#334155"
+  },
+  checkItemDetailText: {
     fontSize: 10,
     color: "#64748B",
     marginTop: 1
   },
-  dangerTag: {
-    backgroundColor: "#FEE2E2",
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 4
+  badgePassed: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#ECFDF5",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6
   },
-  dangerTagText: {
-    fontSize: 9,
-    fontWeight: "800",
+  badgePassedText: {
+    fontSize: 10,
+    fontWeight: "bold",
+    color: "#059669"
+  },
+  badgeFailed: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#FEF2F2",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6
+  },
+  badgeFailedText: {
+    fontSize: 10,
+    fontWeight: "bold",
     color: "#DC2626"
   },
-
-  // Actions
-  actionsWrap: {
-    marginTop: 8
-  },
-  primaryBtn: {
-    borderRadius: 14,
-    overflow: "hidden"
-  },
-  gradientBtnContent: {
-    height: 50,
+  badgeUnavailable: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingHorizontal: 16
-  },
-  primaryBtnText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "800",
-    letterSpacing: 0.2
-  },
-  btnDisabled: {
-    opacity: 0.5
-  },
-  inProgressContainer: {
-    alignItems: "center",
-    paddingVertical: 14
-  },
-  inProgressText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#2563EB",
-    marginBottom: 14
-  },
-  cancelBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
+    gap: 4,
     backgroundColor: "#F1F5F9",
-    borderRadius: 8
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6
   },
-  cancelBtnText: {
-    fontSize: 12,
-    color: "#64748B",
-    fontWeight: "700"
-  },
-
-  // Result Box
-  resultBox: {
-    alignItems: "center",
-    paddingVertical: 8,
-    gap: 12
-  },
-  resultBadgeSuccess: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#ECFDF5",
-    borderWidth: 1,
-    borderColor: "#A7F3D0",
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20
-  },
-  resultBadgeWarn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#FFFBEB",
-    borderWidth: 1,
-    borderColor: "#FDE68A",
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20
-  },
-  resultBadgeText: {
-    color: "#059669",
-    fontSize: 13,
-    fontWeight: "800"
-  },
-  resultBadgeTextWarn: {
-    color: "#D97706",
-    fontSize: 12.5,
-    fontWeight: "800"
-  },
-  tagMetaGrid: {
-    width: "100%",
-    backgroundColor: "#F8FAFC",
-    borderRadius: 12,
-    padding: 12,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: "#EEF2F6"
-  },
-  tagMetaRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center"
-  },
-  tagMetaLabel: {
-    fontSize: 11,
+  badgeUnavailableText: {
+    fontSize: 10,
+    fontWeight: "bold",
     color: "#64748B"
   },
-  tagMetaVal: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#334155"
+  badgePending: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#FFFBEB",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6
   },
-  tagMetaValMono: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#2563EB",
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace"
-  },
-  syncStatusDesc: {
-    fontSize: 11,
-    color: "#64748B",
-    textAlign: "center"
-  },
-  previewBtn: {
-    width: "100%",
-    borderRadius: 12,
-    overflow: "hidden"
-  },
-  previewBtnText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "800"
+  badgePendingText: {
+    fontSize: 10,
+    fontWeight: "bold",
+    color: "#D97706"
   },
   retryBackendBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    width: "100%",
-    paddingVertical: 10,
     backgroundColor: "#EFF6FF",
     borderWidth: 1,
     borderColor: "#BFDBFE",
-    borderRadius: 12
-  },
-  retryBackendBtnText: {
-    color: "#2563EB",
-    fontSize: 12,
-    fontWeight: "700"
-  },
-  nextBtn: {
-    width: "100%",
+    paddingVertical: 11,
     borderRadius: 12,
-    overflow: "hidden",
     marginTop: 4
   },
-  nextBtnText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "800"
-  },
-
-  // Error Box
-  errorBox: {
-    alignItems: "center",
-    paddingVertical: 12,
-    gap: 8
-  },
-  errorTitle: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: "#DC2626"
-  },
-  errorDesc: {
-    fontSize: 11,
-    color: "#64748B",
-    textAlign: "center",
-    paddingHorizontal: 16
-  },
-  errorActions: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 8
-  },
-  retryBtn: {
-    backgroundColor: "#DC2626",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8
-  },
-  retryBtnText: {
-    color: "#FFFFFF",
+  retryBackendBtnText: {
     fontSize: 12,
-    fontWeight: "700"
+    fontWeight: "bold",
+    color: "#1E40AF"
   },
-  dismissBtn: {
-    backgroundColor: "#F1F5F9",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8
-  },
-  dismissBtnText: {
-    color: "#64748B",
-    fontSize: 12,
-    fontWeight: "700"
-  },
-
-  // Section 11: Checklist Card
-  checklistCard: {
+  diagCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 16,
-    marginTop: 16,
     borderWidth: 1,
-    borderColor: "#EEF2F6",
-    shadowColor: "#64748B",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2
+    borderColor: "#E2E8F0",
+    gap: 8
   },
-  checklistHeader: {
+  diagHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  diagTitle: {
+    fontSize: 13,
+    fontWeight: "bold",
+    color: "#0F172A"
+  },
+  diagDesc: {
+    fontSize: 11,
+    color: "#64748B",
+    lineHeight: 16
+  },
+  diagBtn: {
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 4
+  },
+  diagBtnText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#1E40AF"
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.65)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20
+  },
+  confirmModalBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    padding: 22,
+    width: "100%",
+    maxWidth: 360,
+    alignItems: "center",
+    gap: 12
+  },
+  confirmModalIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#ECFDF5",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  confirmModalTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#0F172A"
+  },
+  confirmModalPrompt: {
+    fontSize: 12,
+    color: "#64748B",
+    textAlign: "center",
+    lineHeight: 18
+  },
+  confirmModalDetails: {
+    width: "100%",
+    backgroundColor: "#F8FAFC",
+    padding: 12,
+    borderRadius: 12,
+    gap: 6
+  },
+  confirmModalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center"
   },
-  checklistTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6
-  },
-  checklistTitle: {
-    fontSize: 13.5,
-    fontWeight: "800",
-    color: "#0F2942"
-  },
-  checklistStatusPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6
-  },
-  checklistStatusPillSuccess: {
-    backgroundColor: "#ECFDF5",
-    borderWidth: 1,
-    borderColor: "#A7F3D0"
-  },
-  checklistStatusPillPending: {
-    backgroundColor: "#FFFBEB",
-    borderWidth: 1,
-    borderColor: "#FDE68A"
-  },
-  checklistStatusPillText: {
-    fontSize: 10,
-    fontWeight: "800"
-  },
-  checklistStatusPillTextSuccess: {
-    color: "#059669"
-  },
-  checklistStatusPillTextPending: {
-    color: "#D97706"
-  },
-  checklistSubtitle: {
-    fontSize: 10.5,
-    color: "#64748B",
-    marginTop: 4,
-    marginBottom: 12
-  },
-  checklistItemsList: {
-    gap: 8
-  },
-  checklistItemRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F8FAFC"
-  },
-  checkItemLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    flex: 1,
-    paddingRight: 8
-  },
-  checkItemNumber: {
+  confirmModalLabel: {
     fontSize: 11,
-    fontWeight: "700",
-    color: "#94A3B8",
-    width: 18
-  },
-  checkItemTextCol: {
-    flex: 1
-  },
-  checkItemLabel: {
-    fontSize: 11.5,
-    color: "#1E293B",
-    fontWeight: "600"
-  },
-  checkItemDetail: {
-    fontSize: 9.5,
-    color: "#64748B",
-    marginTop: 1
-  },
-  retryAllChecksBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginTop: 12
-  },
-  retryAllChecksText: {
-    fontSize: 11.5,
-    fontWeight: "700",
-    color: "#2563EB"
-  },
-
-  // Check Badges
-  badgePassed: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    backgroundColor: "#ECFDF5",
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6
-  },
-  badgePassedText: {
-    fontSize: 9.5,
-    fontWeight: "800",
-    color: "#059669"
-  },
-  badgeFailed: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    backgroundColor: "#FEF2F2",
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6
-  },
-  badgeFailedText: {
-    fontSize: 9.5,
-    fontWeight: "800",
-    color: "#DC2626"
-  },
-  badgeUnavailable: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    backgroundColor: "#F1F5F9",
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6
-  },
-  badgeUnavailableText: {
-    fontSize: 9.5,
-    fontWeight: "700",
     color: "#64748B"
   },
-  badgePending: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    backgroundColor: "#FFFBEB",
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6
-  },
-  badgePendingText: {
-    fontSize: 9.5,
-    fontWeight: "700",
-    color: "#D97706"
-  },
-
-  // Auxiliary Diagnostic Tool Card
-  toolCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: "#EEF2F6",
-    shadowColor: "#64748B",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2
-  },
-  toolHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 6
-  },
-  toolTitle: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#0F2942"
-  },
-  toolDesc: {
+  confirmModalVal: {
     fontSize: 11,
-    color: "#64748B",
-    marginBottom: 12,
-    lineHeight: 16
+    fontWeight: "bold",
+    color: "#0F172A"
   },
-  toolBtn: {
+  confirmModalBtnRow: {
+    flexDirection: "row",
+    gap: 10,
+    width: "100%",
+    marginTop: 8
+  },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    backgroundColor: "#F1F5F9",
+    borderRadius: 12,
+    alignItems: "center"
+  },
+  modalCancelBtnText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#64748B"
+  },
+  modalConfirmBtn: {
+    flex: 1.3,
+    paddingVertical: 12,
+    backgroundColor: "#059669",
+    borderRadius: 12,
+    alignItems: "center"
+  },
+  modalConfirmBtnText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#FFFFFF"
+  },
+  helpModalBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    padding: 22,
+    width: "100%",
+    maxWidth: 380,
+    gap: 14
+  },
+  helpHeader: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
+    gap: 10,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9"
+  },
+  helpIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "#EFF6FF",
-    borderWidth: 1,
-    borderColor: "#BFDBFE",
-    paddingVertical: 10,
-    borderRadius: 10
+    alignItems: "center",
+    justifyContent: "center"
   },
-  toolBtnText: {
-    color: "#2563EB",
+  helpTitle: {
+    fontSize: 15,
+    fontWeight: "bold",
+    color: "#0F172A",
+    flex: 1
+  },
+  helpSection: {
+    gap: 3
+  },
+  helpSectionHeading: {
+    fontSize: 11,
+    fontWeight: "bold",
+    color: "#2563EB"
+  },
+  helpSectionText: {
     fontSize: 12,
-    fontWeight: "700"
+    color: "#475569",
+    lineHeight: 18
   },
-
-  // Section 10: In-App Half-Screen Modal & WebView
-  modalOverlay: {
+  helpCloseBtn: {
+    backgroundColor: "#F1F5F9",
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    marginTop: 6
+  },
+  helpCloseBtnText: {
+    fontSize: 13,
+    fontWeight: "bold",
+    color: "#334155"
+  },
+  previewBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.55)",
+    backgroundColor: "rgba(15, 23, 42, 0.6)",
     justifyContent: "flex-end"
   },
-  modalSheet: {
+  previewSheet: {
     backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8
+    height: SCREEN_HEIGHT * 0.65,
+    overflow: "hidden"
   },
-  modalHeader: {
+  previewSheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0"
+  },
+  previewSheetHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10
+  },
+  previewSheetTitle: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#0F172A"
+  },
+  previewSheetSub: {
+    fontSize: 11,
+    color: "#64748B"
+  },
+  previewCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  previewWebContainer: {
+    flex: 1,
+    position: "relative"
+  },
+  webView: {
+    flex: 1
+  },
+  previewLoadingOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8
+  },
+  previewLoadingText: {
+    fontSize: 12,
+    color: "#64748B"
+  },
+  previewErrorOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+    gap: 6
+  },
+  previewErrorTitle: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#DC2626"
+  },
+  previewErrorSub: {
+    fontSize: 12,
+    color: "#64748B",
+    textAlign: "center"
+  },
+  previewSheetFooter: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EEF2F6",
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
     backgroundColor: "#F8FAFC"
   },
-  modalHeaderLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    flex: 1
-  },
-  modalTitle: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#0F2942"
-  },
-  modalSubtitle: {
-    fontSize: 10.5,
-    color: "#64748B",
-    marginTop: 1
-  },
-  modalControls: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6
-  },
-  modalControlBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: "#F1F5F9"
-  },
-  modalCloseBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: "#F1F5F9"
-  },
-  webViewContainer: {
+  previewSheetFooterText: {
+    fontSize: 10,
+    color: "#94A3B8",
     flex: 1,
-    backgroundColor: "#FFFFFF"
+    marginRight: 10
   },
-  webView: {
-    flex: 1
-  },
-  webViewLoader: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    zIndex: 10
-  },
-  webViewLoaderText: {
-    fontSize: 12,
-    color: "#64748B",
-    fontWeight: "600"
-  },
-  previewErrorWrap: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 24,
-    gap: 10
-  },
-  previewErrorTitle: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: "#DC2626"
-  },
-  previewErrorText: {
-    fontSize: 12,
-    color: "#64748B",
-    textAlign: "center"
-  },
-  previewReloadBtn: {
+  previewDoneBtn: {
     backgroundColor: "#2563EB",
-    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 8,
-    marginTop: 8
+    paddingHorizontal: 14,
+    borderRadius: 8
   },
-  previewReloadBtnText: {
-    color: "#FFFFFF",
+  previewDoneBtnText: {
     fontSize: 12,
-    fontWeight: "700"
+    fontWeight: "bold",
+    color: "#FFFFFF"
   }
 });

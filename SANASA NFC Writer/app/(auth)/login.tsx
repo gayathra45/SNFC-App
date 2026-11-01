@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,7 +10,8 @@ import {
   Platform,
   ScrollView,
   Image,
-  Alert
+  Alert,
+  StatusBar
 } from "react-native";
 import { useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -18,6 +19,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { loginStaff } from "../../src/services/authService";
 import { socketService } from "../../src/services/socketService";
+import { notificationService } from "../../src/services/notificationService";
+import { t, onLanguageChange, getStoredLanguage } from "../../src/services/i18nService";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -25,10 +28,17 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [, setLangState] = useState("en");
+
+  useEffect(() => {
+    getStoredLanguage().then((l) => setLangState(l));
+    const unsub = onLanguageChange((l) => setLangState(l));
+    return unsub;
+  }, []);
 
   const handleLogin = async () => {
     if (!loginId.trim() || !password.trim()) {
-      Alert.alert("Input Required", "Please enter your Branch Email / NIC and Password.");
+      Alert.alert(t("inputRequired"), t("inputRequired"));
       return;
     }
 
@@ -43,13 +53,21 @@ export default function LoginScreen() {
         try {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch {}
+
+        // Connect socket
         socketService.connect().catch(() => {});
+
+        // Register push notifications
+        notificationService
+          .requestPermissionsAndRegister(res.user._id, res.user.branch)
+          .catch(() => {});
+
         router.replace("/(tabs)");
       } else {
-        Alert.alert("Authentication Failed", res.error || "Invalid credentials.");
+        Alert.alert(t("authFailed"), res.error || t("authFailed"));
       }
     } catch (err: any) {
-      Alert.alert("Connection Error", err.message || "Failed to reach server.");
+      Alert.alert(t("connectionError"), err.message || t("connectionError"));
     } finally {
       setLoading(false);
     }
@@ -60,36 +78,47 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={styles.container}
     >
+      <StatusBar barStyle="light-content" />
+      <LinearGradient
+        colors={["#102A43", "#0F172A", "#091422"]}
+        style={StyleSheet.absoluteFill}
+      />
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
         {/* Header Branding */}
         <View style={styles.header}>
-          <Image
-            source={require("../../assets/logo.png")}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-          <Text style={styles.appTitle}>SANASA NFC WRITER</Text>
+          <View style={styles.logoWrapper}>
+            <Image
+              source={require("../../assets/logo.png")}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
+          <Text style={styles.appTitle}>{t("appName")}</Text>
           <View style={styles.badge}>
-            <MaterialCommunityIcons name="shield-check" size={14} color="#2563EB" />
-            <Text style={styles.badgeText}>Authorized Branch Staff Only</Text>
+            <MaterialCommunityIcons name="shield-check" size={14} color="#34D399" />
+            <Text style={styles.badgeText}>{t("staffBadge")}</Text>
           </View>
         </View>
 
         {/* Login Card */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Staff Sign In</Text>
-          <Text style={styles.cardDesc}>
-            Log in with your SANASA branch office credentials to pair with the web portal and write physical cards.
-          </Text>
+          <Text style={styles.cardTitle}>{t("loginTitle")}</Text>
+          <Text style={styles.cardDesc}>{t("loginDesc")}</Text>
 
           {/* Login ID Input */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email / Staff NIC</Text>
+            <Text style={styles.label}>{t("loginIdLabel")}</Text>
             <View style={styles.inputWrap}>
-              <MaterialCommunityIcons name="account-outline" size={20} color="#64748B" style={styles.inputIcon} />
+              <MaterialCommunityIcons
+                name="account-outline"
+                size={20}
+                color="#64748B"
+                style={styles.inputIcon}
+              />
               <TextInput
                 style={styles.input}
                 placeholder="e.g. galle@gmail.com or 1990..."
@@ -104,12 +133,17 @@ export default function LoginScreen() {
 
           {/* Password Input */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
+            <Text style={styles.label}>{t("passwordLabel")}</Text>
             <View style={styles.inputWrap}>
-              <MaterialCommunityIcons name="lock-outline" size={20} color="#64748B" style={styles.inputIcon} />
+              <MaterialCommunityIcons
+                name="lock-outline"
+                size={20}
+                color="#64748B"
+                style={styles.inputIcon}
+              />
               <TextInput
                 style={styles.input}
-                placeholder="Enter your password"
+                placeholder="••••••••"
                 placeholderTextColor="#94A3B8"
                 secureTextEntry={!showPassword}
                 value={password}
@@ -131,44 +165,42 @@ export default function LoginScreen() {
 
           {/* Submit Button */}
           <TouchableOpacity
-            style={[styles.loginBtn, loading && styles.btnDisabled]}
+            style={[styles.loginBtn, loading && styles.loginBtnDisabled]}
             onPress={handleLogin}
             disabled={loading}
             activeOpacity={0.8}
           >
             <LinearGradient
               colors={["#2563EB", "#1D4ED8"]}
+              style={styles.btnGradient}
               start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.loginGradient}
+              end={{ x: 1, y: 1 }}
             >
               {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <View style={styles.loadingRow}>
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <Text style={styles.btnText}>{t("signingIn")}</Text>
+                </View>
               ) : (
                 <View style={styles.btnRow}>
-                  <Text style={styles.loginBtnText}>Sign In</Text>
+                  <Text style={styles.btnText}>{t("signInBtn")}</Text>
                   <MaterialCommunityIcons name="arrow-right" size={18} color="#FFFFFF" />
                 </View>
               )}
             </LinearGradient>
           </TouchableOpacity>
-
-          {/* Settings link for Server IP */}
-          <TouchableOpacity
-            style={styles.settingsLink}
-            onPress={() => router.push("/settings")}
-          >
-            <MaterialCommunityIcons name="cog-outline" size={16} color="#64748B" />
-            <Text style={styles.settingsLinkText}>Configure Server IP / Host</Text>
-          </TouchableOpacity>
         </View>
 
-        {/* Security Notice */}
-        <View style={styles.footerNotice}>
-          <MaterialCommunityIcons name="shield-lock" size={14} color="#94A3B8" />
-          <Text style={styles.footerText}>
-            Protected by SANASA Security. All write operations are logged and branch-isolated.
-          </Text>
+        {/* Footer info */}
+        <View style={styles.footer}>
+          <TouchableOpacity
+            onPress={() => router.replace("/")}
+            style={styles.switchLangBtn}
+          >
+            <MaterialCommunityIcons name="translate" size={15} color="#60A5FA" />
+            <Text style={styles.switchLangText}>Change Language</Text>
+          </TouchableOpacity>
+          <Text style={styles.footerSub}>SANASA General Insurance PLC • Official Mobile Gateway</Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -178,85 +210,99 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC"
+    backgroundColor: "#102A43"
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: "center",
-    padding: 24,
-    paddingTop: 50,
-    paddingBottom: 40
+    paddingHorizontal: 22,
+    paddingTop: 48,
+    paddingBottom: 24,
+    justifyContent: "center"
   },
   header: {
     alignItems: "center",
-    marginBottom: 28
+    marginBottom: 24
+  },
+  logoWrapper: {
+    width: 88,
+    height: 88,
+    borderRadius: 22,
+    backgroundColor: "#0B1D30",
+    borderWidth: 1.5,
+    borderColor: "#1E3A8A",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 8
   },
   logo: {
-    width: 150,
-    height: 75,
-    marginBottom: 12
+    width: 68,
+    height: 68,
+    borderRadius: 16
   },
   appTitle: {
-    fontSize: 20,
-    fontWeight: "900",
-    color: "#0F2942",
-    letterSpacing: 1.5
+    color: "#FFFFFF",
+    fontSize: 24,
+    fontWeight: "bold",
+    letterSpacing: 1.2
   },
   badge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#EFF6FF",
-    borderColor: "#BFDBFE",
+    gap: 6,
+    backgroundColor: "rgba(16, 185, 129, 0.15)",
     borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.35)",
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 20,
-    marginTop: 8,
-    gap: 6
+    marginTop: 8
   },
   badgeText: {
+    color: "#34D399",
     fontSize: 11,
-    color: "#2563EB",
-    fontWeight: "700"
+    fontWeight: "600"
   },
   card: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: "#EEF2F6",
-    shadowColor: "#64748B",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 3
+    borderRadius: 22,
+    padding: 22,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8
   },
   cardTitle: {
     fontSize: 18,
-    fontWeight: "800",
-    color: "#0F2942",
+    fontWeight: "bold",
+    color: "#0F172A",
     marginBottom: 6
   },
   cardDesc: {
     fontSize: 12,
     color: "#64748B",
-    marginBottom: 20,
-    lineHeight: 17
+    lineHeight: 18,
+    marginBottom: 20
   },
   inputGroup: {
     marginBottom: 16
   },
   label: {
-    fontSize: 11.5,
-    fontWeight: "700",
-    color: "#475569",
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#334155",
     marginBottom: 6
   },
   inputWrap: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#F8FAFC",
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: "#E2E8F0",
     borderRadius: 12,
     paddingHorizontal: 12
@@ -267,59 +313,62 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     height: 48,
-    color: "#0F2942",
-    fontSize: 13
+    fontSize: 14,
+    color: "#0F172A"
   },
   eyeBtn: {
-    padding: 8
+    padding: 6
   },
   loginBtn: {
+    marginTop: 10,
     borderRadius: 12,
-    overflow: "hidden",
-    marginTop: 8,
-    marginBottom: 16
+    overflow: "hidden"
   },
-  loginGradient: {
-    height: 48,
+  loginBtnDisabled: {
+    opacity: 0.7
+  },
+  btnGradient: {
+    paddingVertical: 14,
     alignItems: "center",
     justifyContent: "center"
-  },
-  btnDisabled: {
-    opacity: 0.6
   },
   btnRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8
   },
-  loginBtnText: {
+  loadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  btnText: {
     color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: "800"
+    fontWeight: "bold"
   },
-  settingsLink: {
+  footer: {
+    marginTop: 24,
+    alignItems: "center",
+    gap: 8
+  },
+  switchLangBtn: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
     gap: 6,
-    paddingVertical: 8
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: "rgba(37, 99, 235, 0.15)",
+    borderRadius: 16
   },
-  settingsLinkText: {
+  switchLangText: {
+    color: "#60A5FA",
     fontSize: 12,
-    color: "#64748B",
     fontWeight: "600"
   },
-  footerNotice: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 24,
-    gap: 6,
-    paddingHorizontal: 20
-  },
-  footerText: {
-    fontSize: 11,
-    color: "#94A3B8",
+  footerSub: {
+    color: "#64748B",
+    fontSize: 10,
     textAlign: "center"
   }
 });

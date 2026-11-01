@@ -27,6 +27,7 @@ import {
 import { socketService, TransferJobPayload } from "../../src/services/socketService";
 import { getServerUrl } from "../../src/config/api";
 import { flushPendingSyncs } from "../../src/services/syncService";
+import { notificationService } from "../../src/services/notificationService";
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -80,6 +81,12 @@ export default function DashboardScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch {}
       setActiveTransfer(job);
+      notificationService.addNotification(
+        "New Card Job Transferred",
+        `Card ${job.cardId} received for ${job.policyHolderName || "Claim Order"}.`,
+        job.cardId,
+        job
+      );
     });
 
     const unsubPair = socketService.onPairingUpdate(() => {
@@ -288,39 +295,58 @@ export default function DashboardScreen() {
 
       {/* Quick Operations Menu */}
       <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Quick Operations</Text>
+        <Text style={styles.sectionTitle}>NFC Card Provisioning Workflows</Text>
 
         <View style={styles.actionList}>
+          {/* Option 1: Receive from Website */}
           <TouchableOpacity
             style={styles.actionItem}
-            onPress={() => router.push("/(tabs)/writer")}
+            onPress={() => router.push({ pathname: "/(tabs)/writer", params: { mode: "website" } })}
             activeOpacity={0.7}
           >
             <View style={[styles.actionIconBox, { backgroundColor: "#EFF6FF" }]}>
-              <MaterialCommunityIcons name="nfc" size={22} color="#2563EB" />
+              <MaterialCommunityIcons name="cellphone-link" size={22} color="#2563EB" />
             </View>
             <View style={styles.actionInfo}>
-              <Text style={styles.actionTitle}>Write Physical NFC Card</Text>
-              <Text style={styles.actionDesc}>Hold NTAG213/215/216 card against antenna</Text>
+              <Text style={styles.actionTitle}>Receive from Website</Text>
+              <Text style={styles.actionDesc}>Pick up wireless card jobs sent from desktop portal</Text>
             </View>
             <MaterialCommunityIcons name="chevron-right" size={20} color="#CBD5E1" />
           </TouchableOpacity>
 
+          {/* Option 2: Enter URL Manually */}
+          <TouchableOpacity
+            style={styles.actionItem}
+            onPress={() => router.push({ pathname: "/(tabs)/writer", params: { mode: "manual" } })}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.actionIconBox, { backgroundColor: "#ECFDF5" }]}>
+              <MaterialCommunityIcons name="link-plus" size={22} color="#059669" />
+            </View>
+            <View style={styles.actionInfo}>
+              <Text style={styles.actionTitle}>Enter URL Manually</Text>
+              <Text style={styles.actionDesc}>Directly paste or type verified driver access URL</Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={20} color="#CBD5E1" />
+          </TouchableOpacity>
+
+          {/* Option 3: Desktop Terminal Pairing */}
           <TouchableOpacity
             style={styles.actionItem}
             onPress={() => router.push("/(tabs)/pairing")}
             activeOpacity={0.7}
           >
-            <View style={[styles.actionIconBox, { backgroundColor: "#ECFDF5" }]}>
-              <MaterialCommunityIcons name="cellphone-link" size={22} color="#059669" />
+            <View style={[styles.actionIconBox, { backgroundColor: "#FFFBEB" }]}>
+              <MaterialCommunityIcons name="qrcode-scan" size={22} color="#D97706" />
             </View>
             <View style={styles.actionInfo}>
               <Text style={styles.actionTitle}>Desktop Terminal Pairing</Text>
-              <Text style={styles.actionDesc}>Sync phone with desktop website via 6-digit PIN</Text>
+              <Text style={styles.actionDesc}>Pair phone with desktop staff portal via PIN</Text>
             </View>
             <MaterialCommunityIcons name="chevron-right" size={20} color="#CBD5E1" />
           </TouchableOpacity>
 
+          {/* Option 4: Audit History */}
           <TouchableOpacity
             style={styles.actionItem}
             onPress={() => router.push("/(tabs)/history")}

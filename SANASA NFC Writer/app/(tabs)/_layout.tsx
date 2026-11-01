@@ -1,9 +1,20 @@
+import React, { useEffect, useState } from "react";
 import { Tabs, useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { TouchableOpacity, StyleSheet, View, Platform } from "react-native";
+import { TouchableOpacity, StyleSheet, View, Platform, Text } from "react-native";
+import { notificationService } from "../../src/services/notificationService";
 
 export default function TabsLayout() {
   const router = useRouter();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    notificationService.getUnreadCount().then(setUnreadCount);
+    const unsub = notificationService.onChange(() => {
+      notificationService.getUnreadCount().then(setUnreadCount);
+    });
+    return unsub;
+  }, []);
 
   return (
     <Tabs
@@ -23,15 +34,36 @@ export default function TabsLayout() {
           letterSpacing: -0.3
         },
         headerRight: () => (
-          <TouchableOpacity
-            onPress={() => router.push("/settings")}
-            style={styles.settingsHeaderBtn}
-            activeOpacity={0.7}
-          >
-            <View style={styles.settingsIconCircle}>
-              <MaterialCommunityIcons name="cog-outline" size={20} color="#475569" />
-            </View>
-          </TouchableOpacity>
+          <View style={styles.headerRightRow}>
+            {/* Notification Bell with Badge */}
+            <TouchableOpacity
+              onPress={() => router.push("/notifications")}
+              style={styles.headerBtn}
+              activeOpacity={0.7}
+            >
+              <View style={styles.iconCircle}>
+                <MaterialCommunityIcons name="bell-outline" size={20} color="#334155" />
+                {unreadCount > 0 && (
+                  <View style={styles.badgeWrap}>
+                    <Text style={styles.badgeText}>
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+
+            {/* Settings */}
+            <TouchableOpacity
+              onPress={() => router.push("/settings")}
+              style={styles.headerBtn}
+              activeOpacity={0.7}
+            >
+              <View style={styles.iconCircle}>
+                <MaterialCommunityIcons name="cog-outline" size={20} color="#475569" />
+              </View>
+            </TouchableOpacity>
+          </View>
         ),
         tabBarStyle: {
           backgroundColor: "#FFFFFF",
@@ -58,7 +90,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Dashboard",
+          title: "S NFC Writer",
           tabBarLabel: "Dashboard",
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.tabIconWrap, focused && styles.tabIconWrapActive]}>
@@ -93,7 +125,12 @@ export default function TabsLayout() {
           title: "NFC Writer",
           tabBarLabel: "Write Card",
           tabBarIcon: ({ focused }) => (
-            <View style={[styles.writerIconWrap, focused ? styles.writerIconWrapActive : styles.writerIconWrapInactive]}>
+            <View
+              style={[
+                styles.writerIconWrap,
+                focused ? styles.writerIconWrapActive : styles.writerIconWrapInactive
+              ]}
+            >
               <MaterialCommunityIcons
                 name="nfc"
                 size={22}
@@ -124,18 +161,44 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
-  settingsHeaderBtn: {
-    marginRight: 16
+  headerRightRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginRight: 14
   },
-  settingsIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  headerBtn: {
+    padding: 2
+  },
+  iconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "#F1F5F9",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#E2E8F0"
+    borderColor: "#E2E8F0",
+    position: "relative"
+  },
+  badgeWrap: {
+    position: "absolute",
+    top: -3,
+    right: -3,
+    backgroundColor: "#DC2626",
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF"
+  },
+  badgeText: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "bold"
   },
   tabIconWrap: {
     width: 38,
