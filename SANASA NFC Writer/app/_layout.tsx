@@ -72,21 +72,21 @@ export default function RootLayout() {
         <Stack.Screen
           name="notifications"
           options={{
-            title: "Notification Centre",
+            headerShown: false,
             presentation: "modal"
           }}
         />
         <Stack.Screen
           name="card-detail"
           options={{
-            title: "Card Details",
+            headerShown: false,
             presentation: "modal"
           }}
         />
         <Stack.Screen
           name="settings"
           options={{
-            title: "Settings & Diagnostics",
+            headerShown: false,
             presentation: "modal"
           }}
         />

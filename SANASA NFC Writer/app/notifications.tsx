@@ -16,6 +16,7 @@ import {
   AppNotificationItem
 } from "../src/services/notificationService";
 import { t } from "../src/services/i18nService";
+import SanasaAppHeader from "../src/components/SanasaAppHeader";
 
 export default function NotificationsScreen() {
   const router = useRouter();
@@ -123,7 +124,7 @@ export default function NotificationsScreen() {
           {item.relatedCardId && (
             <View style={styles.cardTag}>
               <Text style={styles.cardTagText}>{item.relatedCardId}</Text>
-              <MaterialCommunityIcons name="arrow-right" size={12} color="#2563EB" />
+              <MaterialCommunityIcons name="arrow-right" size={12} color="#10B981" />
             </View>
           )}
         </View>
@@ -131,34 +132,51 @@ export default function NotificationsScreen() {
     );
   };
 
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
   return (
     <View style={styles.container}>
-      {/* Top Bar Actions */}
-      <View style={styles.topBar}>
-        <Text style={styles.topBarCount}>
-          {notifications.length} {notifications.length === 1 ? "Notification" : "Notifications"}
-        </Text>
-        <View style={styles.topBarActions}>
-          {notifications.some((n) => !n.read) && (
-            <TouchableOpacity style={styles.actionBtn} onPress={handleMarkAllRead}>
-              <MaterialCommunityIcons name="check-all" size={16} color="#2563EB" />
-              <Text style={styles.actionBtnText}>{t("markAllRead")}</Text>
+      <SanasaAppHeader
+        title="Notifications"
+        subtitle="Staff Alerts & NFC Job Queue"
+        showBack={true}
+        onBackPress={() => router.back()}
+        statusBadge={{
+          text: unreadCount > 0 ? `${unreadCount} Unread` : "All Caught Up",
+          color: unreadCount > 0 ? "#FF9800" : "#10B981"
+        }}
+        rightAction={
+          notifications.length > 0 ? (
+            <TouchableOpacity
+              style={styles.headerActionBtn}
+              onPress={handleClearAll}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons name="trash-can-outline" size={18} color="#FFFFFF" />
             </TouchableOpacity>
-          )}
-          {notifications.length > 0 && (
-            <TouchableOpacity style={styles.clearBtn} onPress={handleClearAll}>
-              <MaterialCommunityIcons name="trash-can-outline" size={15} color="#DC2626" />
-              <Text style={styles.clearBtnText}>{t("clearNotifications")}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
+          ) : null
+        }
+        overlappingContent={
+          <View style={styles.headerOverlapCard}>
+            <Text style={styles.topBarCount}>
+              {notifications.length} {notifications.length === 1 ? "Notification" : "Notifications"}
+            </Text>
+            {unreadCount > 0 && (
+              <TouchableOpacity style={styles.actionBtn} onPress={handleMarkAllRead}>
+                <MaterialCommunityIcons name="check-all" size={16} color="#10B981" />
+                <Text style={styles.actionBtnText}>{t("markAllRead")}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        }
+      />
 
       <FlatList
         data={notifications}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           !loading ? (
             <View style={styles.emptyBox}>
@@ -182,25 +200,36 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F8FAFC"
   },
-  topBar: {
+  headerActionBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(255, 255, 255, 0.16)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.25)"
+  },
+  headerOverlapCard: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
     backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0"
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    shadowColor: "#0D2A3A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "#E2E8F0"
   },
   topBarCount: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "700",
     color: "#64748B"
-  },
-  topBarActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12
   },
   actionBtn: {
     flexDirection: "row",
@@ -210,37 +239,28 @@ const styles = StyleSheet.create({
   actionBtnText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#2563EB"
-  },
-  clearBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4
-  },
-  clearBtnText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#DC2626"
+    color: "#10B981"
   },
   listContent: {
     padding: 16,
+    paddingTop: 14,
     gap: 12
   },
   itemCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 14,
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    shadowColor: "#000",
+    shadowColor: "#0D2A3A",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
-    shadowRadius: 4,
+    shadowRadius: 6,
     elevation: 2
   },
   itemUnread: {
-    borderColor: "#BFDBFE",
-    backgroundColor: "#F8FAFF"
+    borderColor: "rgba(16, 185, 129, 0.4)",
+    backgroundColor: "rgba(16, 185, 129, 0.03)"
   },
   itemHeader: {
     flexDirection: "row",
@@ -262,10 +282,10 @@ const styles = StyleSheet.create({
     justifyContent: "center"
   },
   iconBadgeCard: {
-    backgroundColor: "#EFF6FF"
+    backgroundColor: "rgba(16, 185, 129, 0.12)"
   },
   iconBadgeGeneral: {
-    backgroundColor: "#ECFDF5"
+    backgroundColor: "rgba(13, 42, 58, 0.08)"
   },
   itemTitle: {
     fontSize: 13,
@@ -281,7 +301,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#2563EB"
+    backgroundColor: "#FF9800"
   },
   itemBody: {
     fontSize: 12,
@@ -305,7 +325,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "rgba(13, 42, 58, 0.06)",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6
@@ -313,7 +333,7 @@ const styles = StyleSheet.create({
   cardTagText: {
     fontSize: 10,
     fontWeight: "700",
-    color: "#1E40AF",
+    color: "#0D2A3A",
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace"
   },
   emptyBox: {

@@ -12,6 +12,8 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { maskUrlToken } from "../src/services/storageService";
 
+import SanasaAppHeader from "../src/components/SanasaAppHeader";
+
 export default function CardDetailModal() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -35,62 +37,81 @@ export default function CardDetailModal() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.cardHeader}>
-        <View style={styles.iconCircle}>
-          <MaterialCommunityIcons name="credit-card-wireless" size={28} color="#2563EB" />
-        </View>
-        <Text style={styles.cardIdText}>{cardId}</Text>
-        <View style={styles.statusPill}>
-          <Text style={styles.statusPillText}>{status}</Text>
-        </View>
-      </View>
-
-      <View style={styles.detailsCard}>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Associated Request:</Text>
-          <Text style={styles.detailValue}>{orderNumber}</Text>
-        </View>
-
-        {policyHolderName ? (
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Policyholder:</Text>
-            <Text style={styles.detailValue}>{policyHolderName}</Text>
+    <View style={styles.container}>
+      <SanasaAppHeader
+        title="Card Specification"
+        subtitle="Provisioning Payload & Security"
+        showBack={true}
+        onBackPress={() => router.back()}
+        statusBadge={{ text: status, color: "#10B981" }}
+        overlappingContent={
+          <View style={styles.headerOverlapCard}>
+            <View style={styles.cardHeaderRow}>
+              <View style={styles.iconCircle}>
+                <MaterialCommunityIcons name="credit-card-wireless" size={24} color="#10B981" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cardIdText}>{cardId}</Text>
+                <Text style={styles.cardSubText}>
+                  {policyHolderName ? `${policyHolderName} • ` : ""}{orderNumber}
+                </Text>
+              </View>
+            </View>
           </View>
-        ) : null}
+        }
+      />
 
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Payload URI (Masked):</Text>
-          <Text style={styles.monoValue}>{maskUrlToken(cardUrl)}</Text>
-        </View>
-
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>NFC Format:</Text>
-          <Text style={styles.detailValue}>NDEF URI Record (NFC Forum Type 2)</Text>
-        </View>
-
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Security:</Text>
-          <Text style={[styles.detailValue, { color: "#059669" }]}>Cryptographic Token Protected</Text>
-        </View>
-      </View>
-
-      <TouchableOpacity
-        style={styles.writeBtn}
-        onPress={handleProceedToWrite}
-        activeOpacity={0.8}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
       >
-        <LinearGradient
-          colors={["#2563EB", "#1D4ED8"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.gradientBtn}
+        <View style={styles.detailsCard}>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Associated Request:</Text>
+            <Text style={styles.detailValue}>{orderNumber}</Text>
+          </View>
+
+          {policyHolderName ? (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Policyholder:</Text>
+              <Text style={styles.detailValue}>{policyHolderName}</Text>
+            </View>
+          ) : null}
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Payload URI (Masked):</Text>
+            <Text style={styles.monoValue}>{maskUrlToken(cardUrl)}</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>NFC Format:</Text>
+            <Text style={styles.detailValue}>NDEF URI Record (NFC Forum Type 2)</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Security:</Text>
+            <Text style={[styles.detailValue, { color: "#059669" }]}>Cryptographic Token Protected</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={styles.writeBtn}
+          onPress={handleProceedToWrite}
+          activeOpacity={0.8}
         >
-          <MaterialCommunityIcons name="nfc" size={20} color="#FFFFFF" />
-          <Text style={styles.writeBtnText}>Proceed to Write Card</Text>
-        </LinearGradient>
-      </TouchableOpacity>
-    </ScrollView>
+          <LinearGradient
+            colors={["#059669", "#10B981"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.gradientBtn}
+          >
+            <MaterialCommunityIcons name="nfc" size={20} color="#FFFFFF" />
+            <Text style={styles.writeBtnText}>Proceed to Write Card</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -100,56 +121,60 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8FAFC"
   },
   content: {
-    padding: 20,
+    padding: 16,
+    paddingTop: 14,
     paddingBottom: 40
   },
-  cardHeader: {
-    alignItems: "center",
-    marginBottom: 24
-  },
-  iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "#EFF6FF",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#BFDBFE"
-  },
-  cardIdText: {
-    fontSize: 18,
-    fontWeight: "900",
-    color: "#0F2942",
-    letterSpacing: 0.3,
-    marginBottom: 6
-  },
-  statusPill: {
-    backgroundColor: "#EFF6FF",
-    borderWidth: 1,
-    borderColor: "#BFDBFE",
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 14
-  },
-  statusPillText: {
-    fontSize: 11,
-    color: "#2563EB",
-    fontWeight: "800"
-  },
-  detailsCard: {
+  headerOverlapCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 18,
     padding: 16,
+    shadowColor: "#0D2A3A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
     borderWidth: 1,
-    borderColor: "#EEF2F6",
-    shadowColor: "#64748B",
+    borderColor: "#E2E8F0"
+  },
+  cardHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12
+  },
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.25)"
+  },
+  cardIdText: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#0F2942",
+    letterSpacing: 0.3
+  },
+  cardSubText: {
+    fontSize: 11.5,
+    color: "#64748B",
+    marginTop: 2
+  },
+  detailsCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    shadowColor: "#0D2A3A",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 2,
-    gap: 12,
+    gap: 14,
     marginBottom: 24
   },
   detailRow: {

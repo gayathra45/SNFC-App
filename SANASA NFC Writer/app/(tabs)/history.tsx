@@ -22,6 +22,7 @@ import {
 } from "../../src/services/storageService";
 import { nfcService, NfcDiagnosticStatus } from "../../src/services/nfcService";
 import { getServerUrl } from "../../src/config/api";
+import SanasaAppHeader from "../../src/components/SanasaAppHeader";
 
 export default function HistoryScreen() {
   const [history, setHistory] = useState<WriteHistoryItem[]>([]);
@@ -105,78 +106,101 @@ export default function HistoryScreen() {
   });
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Diagnostics Card */}
-      <View style={styles.diagCard}>
-        <View style={styles.diagHeader}>
-          <MaterialCommunityIcons name="chip" size={20} color="#2563EB" />
-          <Text style={styles.diagTitle}>NFC & Hardware Diagnostics</Text>
-        </View>
+    <View style={styles.container}>
+      <SanasaAppHeader
+        title="Audit & History"
+        subtitle="Hardware Write & Verification Logs"
+        statusBadge={{ text: `${history.length} Logs`, color: "#10B981" }}
+        rightAction={
+          <TouchableOpacity
+            style={styles.headerActionBtn}
+            onPress={handleExportDiagnostics}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="file-export-outline" size={18} color="#FFFFFF" />
+          </TouchableOpacity>
+        }
+        overlappingContent={
+          <View style={styles.headerOverlapFilterCard}>
+            {(["All", "Success", "Sync Pending", "Failed"] as const).map((tab) => (
+              <TouchableOpacity
+                key={tab}
+                style={[styles.pill, filter === tab && styles.pillActive]}
+                onPress={() => setFilter(tab)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.pillText, filter === tab && styles.pillTextActive]}>
+                  {tab}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        }
+      />
 
-        <View style={styles.diagGrid}>
-          <View style={styles.diagRow}>
-            <Text style={styles.diagLabel}>Device Model:</Text>
-            <Text style={styles.diagVal}>
-              {Device.brand} {Device.modelName}
-            </Text>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Diagnostics Card */}
+        <View style={styles.diagCard}>
+          <View style={styles.diagHeader}>
+            <View style={styles.diagIconBox}>
+              <MaterialCommunityIcons name="chip" size={18} color="#10B981" />
+            </View>
+            <Text style={styles.diagTitle}>NFC & Hardware Diagnostics</Text>
           </View>
-          <View style={styles.diagRow}>
-            <Text style={styles.diagLabel}>NFC Hardware:</Text>
-            <Text style={[styles.diagVal, nfcDiag?.supported ? styles.textGreen : styles.textRed]}>
-              {nfcDiag?.supported ? "Available" : "Not Detected"}
-            </Text>
-          </View>
-          <View style={styles.diagRow}>
-            <Text style={styles.diagLabel}>NFC Power State:</Text>
-            <Text style={[styles.diagVal, nfcDiag?.enabled ? styles.textGreen : styles.textAmber]}>
-              {nfcDiag?.enabled ? "Active / Enabled" : "Disabled"}
-            </Text>
-          </View>
-          <View style={styles.diagRow}>
-            <Text style={styles.diagLabel}>Branch Isolation:</Text>
-            <Text style={styles.diagVal}>{staff?.branch || "Not Set"} Branch</Text>
-          </View>
-          <View style={styles.diagRow}>
-            <Text style={styles.diagLabel}>Backend Host:</Text>
-            <Text style={[styles.diagVal, styles.mono]}>{serverUrl}</Text>
-          </View>
-        </View>
 
-        <TouchableOpacity
-          style={styles.exportBtn}
-          onPress={handleExportDiagnostics}
-          activeOpacity={0.8}
-        >
-          <MaterialCommunityIcons name="file-export-outline" size={16} color="#2563EB" />
-          <Text style={styles.exportBtnText}>Export Sanitized Audit Log</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* History Filter Bar */}
-      <View style={styles.historySection}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Write History ({history.length})</Text>
-          {history.length > 0 && (
-            <TouchableOpacity onPress={handleClearHistory}>
-              <Text style={styles.clearText}>Clear Log</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        <View style={styles.filterPills}>
-          {(["All", "Success", "Sync Pending", "Failed"] as const).map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              style={[styles.pill, filter === tab && styles.pillActive]}
-              onPress={() => setFilter(tab)}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.pillText, filter === tab && styles.pillTextActive]}>
-                {tab}
+          <View style={styles.diagGrid}>
+            <View style={styles.diagRow}>
+              <Text style={styles.diagLabel}>Device Model:</Text>
+              <Text style={styles.diagVal}>
+                {Device.brand} {Device.modelName}
               </Text>
-            </TouchableOpacity>
-          ))}
+            </View>
+            <View style={styles.diagRow}>
+              <Text style={styles.diagLabel}>NFC Hardware:</Text>
+              <Text style={[styles.diagVal, nfcDiag?.supported ? styles.textGreen : styles.textRed]}>
+                {nfcDiag?.supported ? "Available" : "Not Detected"}
+              </Text>
+            </View>
+            <View style={styles.diagRow}>
+              <Text style={styles.diagLabel}>NFC Power State:</Text>
+              <Text style={[styles.diagVal, nfcDiag?.enabled ? styles.textGreen : styles.textAmber]}>
+                {nfcDiag?.enabled ? "Active / Enabled" : "Disabled"}
+              </Text>
+            </View>
+            <View style={styles.diagRow}>
+              <Text style={styles.diagLabel}>Branch Isolation:</Text>
+              <Text style={styles.diagVal}>{staff?.branch || "Not Set"} Branch</Text>
+            </View>
+            <View style={styles.diagRow}>
+              <Text style={styles.diagLabel}>Backend Host:</Text>
+              <Text style={[styles.diagVal, styles.mono]}>{serverUrl}</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={styles.exportBtn}
+            onPress={handleExportDiagnostics}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="share-variant-outline" size={16} color="#0D2A3A" />
+            <Text style={styles.exportBtnText}>Share Sanitized Audit Log</Text>
+          </TouchableOpacity>
         </View>
+
+        {/* History List */}
+        <View style={styles.historySection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recorded Card Writes ({filteredHistory.length})</Text>
+            {history.length > 0 && (
+              <TouchableOpacity onPress={handleClearHistory}>
+                <Text style={styles.clearText}>Clear Log</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
         {filteredHistory.length === 0 ? (
           <View style={styles.emptyBox}>
@@ -268,7 +292,8 @@ export default function HistoryScreen() {
           </View>
         )}
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -279,29 +304,62 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
+    paddingTop: 14,
     paddingBottom: 40
+  },
+  headerActionBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(255, 255, 255, 0.16)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.25)"
+  },
+  headerOverlapFilterCard: {
+    flexDirection: "row",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 5,
+    shadowColor: "#0D2A3A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    gap: 6
   },
   diagCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 18,
+    borderRadius: 20,
     padding: 16,
     borderWidth: 1,
-    borderColor: "#EEF2F6",
+    borderColor: "#E2E8F0",
     marginBottom: 16,
-    shadowColor: "#64748B",
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: "#0D2A3A",
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.05,
-    shadowRadius: 6,
+    shadowRadius: 8,
     elevation: 2
   },
   diagHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
     marginBottom: 12
   },
+  diagIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    alignItems: "center",
+    justifyContent: "center"
+  },
   diagTitle: {
-    fontSize: 13.5,
+    fontSize: 14,
     fontWeight: "800",
     color: "#0F2942"
   },
@@ -346,14 +404,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "rgba(13, 42, 58, 0.06)",
     borderWidth: 1,
-    borderColor: "#BFDBFE",
-    paddingVertical: 10,
-    borderRadius: 10
+    borderColor: "rgba(13, 42, 58, 0.15)",
+    paddingVertical: 11,
+    borderRadius: 12
   },
   exportBtnText: {
-    color: "#2563EB",
+    color: "#0D2A3A",
     fontSize: 12,
     fontWeight: "700"
   },
@@ -365,7 +423,8 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center"
+    alignItems: "center",
+    marginTop: 4
   },
   sectionTitle: {
     fontSize: 14,
@@ -377,21 +436,18 @@ const styles = StyleSheet.create({
     color: "#DC2626",
     fontWeight: "700"
   },
-  filterPills: {
-    flexDirection: "row",
-    gap: 8
-  },
   pill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0"
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: "transparent",
+    alignItems: "center",
+    justifyContent: "center"
   },
   pillActive: {
-    backgroundColor: "#EFF6FF",
-    borderColor: "#2563EB"
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    borderWidth: 1,
+    borderColor: "#10B981"
   },
   pillText: {
     fontSize: 11,
@@ -399,7 +455,8 @@ const styles = StyleSheet.create({
     color: "#64748B"
   },
   pillTextActive: {
-    color: "#2563EB"
+    color: "#065F46",
+    fontWeight: "800"
   },
 
   // Empty Box

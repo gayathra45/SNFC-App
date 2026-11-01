@@ -29,6 +29,7 @@ import { logoutStaff } from "../src/services/authService";
 import { getServerUrl, setCustomServerUrl, resetServerUrl } from "../src/config/api";
 import { socketService } from "../src/services/socketService";
 import { flushPendingSyncs } from "../src/services/syncService";
+import SanasaAppHeader from "../src/components/SanasaAppHeader";
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -174,37 +175,44 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Staff Account Header Card */}
-      <View style={styles.card}>
-        <View style={styles.accountHeaderRow}>
-          <View style={styles.avatarWrap}>
-            <MaterialCommunityIcons name="account" size={26} color="#2563EB" />
+    <View style={styles.container}>
+      <SanasaAppHeader
+        title="Settings & Policies"
+        subtitle="Staff Diagnostics & Hardware Controls"
+        showBack={true}
+        onBackPress={() => router.back()}
+        statusBadge={{ text: staff?.branch ? `${staff.branch} Branch` : "Staff Online", color: "#10B981" }}
+        overlappingContent={
+          <View style={styles.headerOverlapCard}>
+            <View style={styles.avatarWrap}>
+              <MaterialCommunityIcons name="shield-account" size={24} color="#10B981" />
+            </View>
+            <View style={styles.accountMeta}>
+              <Text style={styles.accountName}>{staff?.name || "Staff Member"}</Text>
+              <Text style={styles.accountEmail}>{staff?.email || "staff@sanasa.lk"}</Text>
+            </View>
+            <TouchableOpacity style={styles.logoutPill} onPress={handleLogout} activeOpacity={0.8}>
+              <MaterialCommunityIcons name="logout" size={13} color="#DC2626" />
+              <Text style={styles.logoutPillText}>Sign Out</Text>
+            </TouchableOpacity>
           </View>
-          <View style={styles.accountMeta}>
-            <Text style={styles.accountName}>{staff?.name || "Staff Member"}</Text>
-            <Text style={styles.accountEmail}>{staff?.email || "staff@sanasa.lk"}</Text>
-          </View>
-          <View style={styles.branchBadge}>
-            <Text style={styles.branchBadgeText}>{staff?.branch || "Galle"} Branch</Text>
-          </View>
-        </View>
+        }
+      />
 
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
-          <MaterialCommunityIcons name="logout" size={16} color="#DC2626" />
-          <Text style={styles.logoutBtnText}>Sign Out of Device</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* NFC Tag Safety & Engineering Settings */}
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <MaterialCommunityIcons name="shield-lock-outline" size={20} color="#2563EB" />
-          <Text style={styles.cardTitle}>NFC Tag Safety & Engineering</Text>
-        </View>
-        <Text style={styles.sectionDesc}>
-          Hardware write controls and read-back verification policies.
-        </Text>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* NFC Tag Safety & Engineering Settings */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <MaterialCommunityIcons name="shield-lock-outline" size={20} color="#10B981" />
+            <Text style={styles.cardTitle}>NFC Tag Safety & Engineering</Text>
+          </View>
+          <Text style={styles.sectionDesc}>
+            Hardware write controls and read-back verification policies.
+          </Text>
 
         <View style={styles.settingRow}>
           <View style={styles.settingTextWrap}>
@@ -217,7 +225,7 @@ export default function SettingsScreen() {
             value={settings.strictReadBackVerify}
             onValueChange={(val) => handleUpdateSetting("strictReadBackVerify", val)}
             thumbColor="#FFFFFF"
-            trackColor={{ false: "#CBD5E1", true: "#2563EB" }}
+            trackColor={{ false: "#CBD5E1", true: "#10B981" }}
           />
         </View>
 
@@ -234,7 +242,7 @@ export default function SettingsScreen() {
             value={settings.overwriteProtection}
             onValueChange={(val) => handleUpdateSetting("overwriteProtection", val)}
             thumbColor="#FFFFFF"
-            trackColor={{ false: "#CBD5E1", true: "#2563EB" }}
+            trackColor={{ false: "#CBD5E1", true: "#10B981" }}
           />
         </View>
 
@@ -261,7 +269,7 @@ export default function SettingsScreen() {
       {/* Audio & Haptic Feedback */}
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <MaterialCommunityIcons name="vibrate" size={20} color="#2563EB" />
+          <MaterialCommunityIcons name="vibrate" size={20} color="#10B981" />
           <Text style={styles.cardTitle}>Audio & Haptics</Text>
         </View>
 
@@ -276,7 +284,7 @@ export default function SettingsScreen() {
             value={settings.hapticFeedback}
             onValueChange={(val) => handleUpdateSetting("hapticFeedback", val)}
             thumbColor="#FFFFFF"
-            trackColor={{ false: "#CBD5E1", true: "#2563EB" }}
+            trackColor={{ false: "#CBD5E1", true: "#10B981" }}
           />
         </View>
 
@@ -293,7 +301,7 @@ export default function SettingsScreen() {
             value={settings.soundChimes}
             onValueChange={(val) => handleUpdateSetting("soundChimes", val)}
             thumbColor="#FFFFFF"
-            trackColor={{ false: "#CBD5E1", true: "#2563EB" }}
+            trackColor={{ false: "#CBD5E1", true: "#10B981" }}
           />
         </View>
       </View>
@@ -301,7 +309,7 @@ export default function SettingsScreen() {
       {/* Desktop Terminal Pairing */}
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <MaterialCommunityIcons name="cellphone-link" size={20} color="#2563EB" />
+          <MaterialCommunityIcons name="cellphone-link" size={20} color="#10B981" />
           <Text style={styles.cardTitle}>Paired Desktop Terminal</Text>
         </View>
 
@@ -337,7 +345,7 @@ export default function SettingsScreen() {
       {/* Backend API Configuration */}
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <MaterialCommunityIcons name="server-network" size={20} color="#2563EB" />
+          <MaterialCommunityIcons name="server-network" size={20} color="#10B981" />
           <Text style={styles.cardTitle}>Backend Server Configuration</Text>
         </View>
         <Text style={styles.sectionDesc}>
@@ -390,7 +398,7 @@ export default function SettingsScreen() {
       {/* Offline Storage Queue */}
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <MaterialCommunityIcons name="database-sync" size={20} color="#2563EB" />
+          <MaterialCommunityIcons name="database-sync" size={20} color="#10B981" />
           <Text style={styles.cardTitle}>Offline Sync & Local Queue</Text>
         </View>
         <Text style={styles.sectionDesc}>
@@ -418,7 +426,8 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -429,18 +438,71 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
+    paddingTop: 14,
     paddingBottom: 40
+  },
+  headerOverlapCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 12,
+    shadowColor: "#0D2A3A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    gap: 12
+  },
+  avatarWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  accountMeta: {
+    flex: 1
+  },
+  accountName: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#0F2942"
+  },
+  accountEmail: {
+    fontSize: 11,
+    color: "#64748B",
+    marginTop: 2
+  },
+  logoutPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "#FEF2F2",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#FECACA"
+  },
+  logoutPillText: {
+    color: "#DC2626",
+    fontSize: 11,
+    fontWeight: "700"
   },
   card: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 18,
+    borderRadius: 20,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#EEF2F6",
-    shadowColor: "#64748B",
+    borderColor: "#E2E8F0",
+    shadowColor: "#0D2A3A",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 2
   },
@@ -465,62 +527,6 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#F1F5F9",
     marginVertical: 12
-  },
-
-  // Account
-  accountHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12
-  },
-  avatarWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#EFF6FF",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  accountMeta: {
-    flex: 1
-  },
-  accountName: {
-    fontSize: 14.5,
-    fontWeight: "800",
-    color: "#0F2942"
-  },
-  accountEmail: {
-    fontSize: 11,
-    color: "#64748B",
-    marginTop: 2
-  },
-  branchBadge: {
-    backgroundColor: "#EFF6FF",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8
-  },
-  branchBadgeText: {
-    color: "#2563EB",
-    fontSize: 10.5,
-    fontWeight: "700"
-  },
-  logoutBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    marginTop: 14,
-    paddingVertical: 10,
-    backgroundColor: "#FEF2F2",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#FECACA"
-  },
-  logoutBtnText: {
-    color: "#DC2626",
-    fontSize: 12,
-    fontWeight: "700"
   },
 
   // Settings Rows
@@ -577,15 +583,15 @@ const styles = StyleSheet.create({
     color: "#64748B"
   },
   pairNowBtn: {
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#BFDBFE"
+    borderColor: "#10B981"
   },
   pairNowBtnText: {
-    color: "#2563EB",
+    color: "#065F46",
     fontSize: 11,
     fontWeight: "700"
   },
@@ -619,20 +625,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "rgba(13, 42, 58, 0.06)",
     borderWidth: 1,
-    borderColor: "#BFDBFE",
+    borderColor: "rgba(13, 42, 58, 0.15)",
     paddingVertical: 10,
     borderRadius: 10
   },
   testBtnText: {
-    color: "#2563EB",
+    color: "#0D2A3A",
     fontSize: 12,
     fontWeight: "700"
   },
   saveBtn: {
     flex: 1,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#10B981",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 10,

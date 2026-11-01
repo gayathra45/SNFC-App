@@ -28,6 +28,7 @@ import { socketService, TransferJobPayload } from "../../src/services/socketServ
 import { getServerUrl } from "../../src/config/api";
 import { flushPendingSyncs } from "../../src/services/syncService";
 import { notificationService } from "../../src/services/notificationService";
+import SanasaAppHeader from "../../src/components/SanasaAppHeader";
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -39,6 +40,7 @@ export default function DashboardScreen() {
   const [socketConnected, setSocketConnected] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [syncingOffline, setSyncingOffline] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const loadData = useCallback(async () => {
     try {
@@ -70,6 +72,10 @@ export default function DashboardScreen() {
 
   useEffect(() => {
     loadData();
+    notificationService.getUnreadCount().then(setUnreadCount);
+    const unsubNotif = notificationService.onChange(() => {
+      notificationService.getUnreadCount().then(setUnreadCount);
+    });
 
     // Socket.IO listeners
     const unsubConn = socketService.onConnectionChange((connected) => {
@@ -97,6 +103,7 @@ export default function DashboardScreen() {
       unsubConn();
       unsubJob();
       unsubPair();
+      unsubNotif();
     };
   }, [loadData]);
 
@@ -128,44 +135,75 @@ export default function DashboardScreen() {
   const pendingQueueCount = activeTransfer ? 1 : 0;
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563EB" colors={["#2563EB"]} />}
-    >
-      {/* Branch & Staff Profile Header Card */}
-      <View style={styles.profileCard}>
-        <View style={styles.profileLeft}>
-          <View style={styles.branchTag}>
-            <MaterialCommunityIcons name="shield-check" size={13} color="#2563EB" />
-            <Text style={styles.branchTagText}>{staff?.branch || "Galle"} Branch</Text>
-          </View>
-          <Text style={styles.staffName}>{staff?.name || "Branch Staff Member"}</Text>
-          <Text style={styles.staffEmail}>{staff?.email || "Branch Office Portal"}</Text>
-        </View>
+    <View style={styles.root}>
+      {/* ── Signature Sanasa Curved Header (borderBottomRightRadius: 50) ── */}
+      <SanasaAppHeader
+        title="S NFC Writer"
+        subtitle={staff?.name ? `${staff.name} • ${staff.branch || "Galle"} Branch` : "SANASA Contactless Provisioning"}
+        badgeText={socketConnected ? "Live Gateway Active" : "Offline Cache Mode"}
+        badgeIcon={socketConnected ? "check-circle" : "cloud-off-outline"}
+        rightAction={
+          <View style={styles.headerRightActions}>
+            <TouchableOpacity
+              onPress={() => router.push("/notifications")}
+              style={styles.headerGlassBtn}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="bell-outline" size={20} color="#FFFFFF" />
+              {unreadCount > 0 && (
+                <View style={styles.headerBadge}>
+                  <Text style={styles.headerBadgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
 
-        <View style={styles.profileRight}>
-          <View style={[styles.statusPill, socketConnected ? styles.statusPillLive : styles.statusPillOffline]}>
-            <View style={[styles.statusDot, socketConnected ? styles.dotGreen : styles.dotAmber]} />
-            <Text style={[styles.statusText, socketConnected ? styles.statusTextLive : styles.statusTextOffline]}>
-              {socketConnected ? "Live Gateway" : "Reconnecting"}
+            <TouchableOpacity
+              onPress={() => router.push("/settings")}
+              style={styles.headerGlassBtn}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="cog-outline" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        }
+      >
+        {/* Overlapping Quick Pairing & Gateway Pill Card */}
+        <View style={styles.overlappingCard}>
+          <View style={styles.overlappingLeft}>
+            <View style={styles.branchPill}>
+              <MaterialCommunityIcons name="shield-check" size={13} color="#10B981" />
+              <Text style={styles.branchPillText}>{staff?.branch || "Galle"} Branch</Text>
+            </View>
+            <Text style={styles.staffProfileSub} numberOfLines={1}>
+              {staff?.email || "Branch Office Terminal"}
             </Text>
           </View>
-          <TouchableOpacity
-            style={styles.pairingMiniBadge}
-            onPress={() => router.push("/(tabs)/pairing")}
-          >
-            <MaterialCommunityIcons
-              name={pairing ? "cellphone-check" : "cellphone-link"}
-              size={12}
-              color={pairing ? "#059669" : "#D97706"}
-            />
-            <Text style={[styles.pairingMiniText, { color: pairing ? "#059669" : "#D97706" }]}>
-              {pairing ? "Device Paired" : "Unpaired"}
-            </Text>
-          </TouchableOpacity>
+
+          <View style={styles.overlappingRight}>
+            <TouchableOpacity
+              style={[styles.pairingPillBtn, pairing ? styles.pairingPillActive : styles.pairingPillWarn]}
+              onPress={() => router.push("/(tabs)/pairing")}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons
+                name={pairing ? "cellphone-check" : "cellphone-link"}
+                size={13}
+                color={pairing ? "#059669" : "#D97706"}
+              />
+              <Text style={[styles.pairingPillText, { color: pairing ? "#059669" : "#D97706" }]}>
+                {pairing ? "Device Paired" : "Pair Device"}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </SanasaAppHeader>
+
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#10B981" colors={["#10B981"]} />}
+      >
 
       {/* Offline Sync Alert if any pending */}
       {pendingSyncs.length > 0 && (
@@ -410,20 +448,127 @@ export default function DashboardScreen() {
           </View>
         </View>
       )}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: "#F8FAFC"
+  },
   container: {
     flex: 1,
     backgroundColor: "#F8FAFC"
   },
   content: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 14,
     paddingBottom: 36
   },
-  // Profile Card
+  headerRightActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  headerGlassBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(255, 255, 255, 0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.22)",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative"
+  },
+  headerBadge: {
+    position: "absolute",
+    top: -3,
+    right: -3,
+    backgroundColor: "#EF4444",
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: "#0A242E"
+  },
+  headerBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "bold"
+  },
+  overlappingCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4
+  },
+  overlappingLeft: {
+    flex: 1,
+    paddingRight: 10
+  },
+  overlappingRight: {
+    alignItems: "flex-end"
+  },
+  branchPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#ECFDF5",
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+    marginBottom: 4
+  },
+  branchPillText: {
+    fontSize: 10.5,
+    fontWeight: "800",
+    color: "#059669"
+  },
+  staffProfileSub: {
+    fontSize: 11.5,
+    color: "#64748B",
+    fontWeight: "500"
+  },
+  pairingPillBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    borderWidth: 1
+  },
+  pairingPillActive: {
+    backgroundColor: "#ECFDF5",
+    borderColor: "#A7F3D0"
+  },
+  pairingPillWarn: {
+    backgroundColor: "#FFFBEB",
+    borderColor: "#FDE68A"
+  },
+  pairingPillText: {
+    fontSize: 11,
+    fontWeight: "700"
+  },
   profileCard: {
     flexDirection: "row",
     justifyContent: "space-between",

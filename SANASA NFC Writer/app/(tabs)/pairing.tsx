@@ -21,6 +21,7 @@ import {
 } from "../../src/services/storageService";
 import { pairWithPortal, unpairDevice, getDeviceIdentifier } from "../../src/services/pairingService";
 import { socketService } from "../../src/services/socketService";
+import SanasaAppHeader from "../../src/components/SanasaAppHeader";
 
 export default function PairingScreen() {
   const [pairingCode, setPairingCode] = useState("");
@@ -107,30 +108,56 @@ export default function PairingScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Header Info */}
-      <View style={styles.header}>
-        <View style={styles.iconCircle}>
-          <MaterialCommunityIcons name="cellphone-link" size={30} color="#2563EB" />
-        </View>
-        <Text style={styles.title}>Desktop Portal Pairing</Text>
-        <Text style={styles.subtitle}>
-          Securely link this phone with your branch desktop session to wirelessly receive card URLs for physical writing.
-        </Text>
-      </View>
-
-      {/* Paired Status Card */}
-      {pairing ? (
-        <View style={styles.pairedCard}>
-          <View style={styles.pairedHeader}>
-            <View style={styles.checkCircle}>
-              <MaterialCommunityIcons name="check" size={20} color="#FFFFFF" />
+    <View style={styles.container}>
+      <SanasaAppHeader
+        title="Terminal Pairing"
+        subtitle="Desktop Web Portal Connection"
+        statusBadge={
+          pairing
+            ? { text: "Paired", color: "#10B981" }
+            : { text: "Disconnected", color: "#FF9800" }
+        }
+        overlappingContent={
+          <View style={styles.headerOverlapCard}>
+            <View style={styles.overlapStatusRow}>
+              <View
+                style={[
+                  styles.statusDot,
+                  { backgroundColor: pairing ? "#10B981" : "#FF9800" }
+                ]}
+              />
+              <Text style={styles.overlapStatusText}>
+                {pairing
+                  ? `${pairing.branch} Branch Terminal Linked`
+                  : "Awaiting 6-Digit Pairing PIN"}
+              </Text>
             </View>
-            <View>
-              <Text style={styles.pairedTitle}>Terminal Connected</Text>
-              <Text style={styles.pairedBranch}>{pairing.branch} Branch Session</Text>
-            </View>
+            <Text style={styles.overlapSubText}>
+              {pairing
+                ? "Ready to receive card requests wirelessly"
+                : "Connect to receive NFC write transfers from desktop"}
+            </Text>
           </View>
+        }
+      />
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Paired Status Card */}
+        {pairing ? (
+          <View style={styles.pairedCard}>
+            <View style={styles.pairedHeader}>
+              <View style={styles.checkCircle}>
+                <MaterialCommunityIcons name="check" size={20} color="#FFFFFF" />
+              </View>
+              <View>
+                <Text style={styles.pairedTitle}>Terminal Connected</Text>
+                <Text style={styles.pairedBranch}>{pairing.branch} Branch Session</Text>
+              </View>
+            </View>
 
           <View style={styles.pairedDetails}>
             <View style={styles.detailItem}>
@@ -150,7 +177,7 @@ export default function PairingScreen() {
           </View>
 
           <View style={styles.instructionBanner}>
-            <MaterialCommunityIcons name="information" size={16} color="#2563EB" />
+            <MaterialCommunityIcons name="information" size={16} color="#10B981" />
             <Text style={styles.instructionText}>
               On the website, click "Transfer to NFC Writer" on any card to send it directly to this phone.
             </Text>
@@ -199,7 +226,7 @@ export default function PairingScreen() {
               colors={
                 loading || pairingCode.length < 6
                   ? ["#CBD5E1", "#94A3B8"]
-                  : ["#2563EB", "#1D4ED8"]
+                  : ["#059669", "#10B981"]
               }
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -248,7 +275,8 @@ export default function PairingScreen() {
           </Text>
         </View>
       )}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -259,7 +287,42 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
+    paddingTop: 14,
     paddingBottom: 40
+  },
+  headerOverlapCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    shadowColor: "#0D2A3A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "#E2E8F0"
+  },
+  overlapStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 2
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4
+  },
+  overlapStatusText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#0F2942"
+  },
+  overlapSubText: {
+    fontSize: 11,
+    color: "#64748B",
+    marginLeft: 16
   },
   header: {
     alignItems: "center",
@@ -358,17 +421,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "rgba(16, 185, 129, 0.08)",
     padding: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#BFDBFE",
+    borderColor: "rgba(16, 185, 129, 0.2)",
     marginBottom: 14
   },
   instructionText: {
     flex: 1,
     fontSize: 11,
-    color: "#1E40AF",
+    color: "#065F46",
     lineHeight: 16
   },
   unpairBtn: {
@@ -471,12 +534,12 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "rgba(13, 42, 58, 0.08)",
     alignItems: "center",
     justifyContent: "center"
   },
   stepBadgeText: {
-    color: "#2563EB",
+    color: "#0D2A3A",
     fontSize: 10,
     fontWeight: "800"
   },

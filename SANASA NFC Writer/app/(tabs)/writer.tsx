@@ -39,6 +39,7 @@ import {
 import { socketService } from "../../src/services/socketService";
 import { notificationService } from "../../src/services/notificationService";
 import SanasaLoadingAnimation from "../../src/components/SanasaLoadingAnimation";
+import SanasaAppHeader from "../../src/components/SanasaAppHeader";
 import {
   t,
   getCurrentLanguage,
@@ -856,60 +857,76 @@ export default function NfcWriterScreen() {
     checklist[5].status === "Passed";
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Top Mode Selector Tabs (Section 8) */}
-      <View style={styles.modeTabsWrap}>
-        <TouchableOpacity
-          style={[
-            styles.modeTabBtn,
-            inputMode === "website" && styles.modeTabBtnActive
-          ]}
-          onPress={() => {
-            setInputMode("website");
-            if (manualUrlValidated && !params.cardUrl) {
-              handleResetForNext();
-            }
-          }}
-          activeOpacity={0.8}
-        >
-          <MaterialCommunityIcons
-            name="cellphone-link"
-            size={16}
-            color={inputMode === "website" ? "#2563EB" : "#64748B"}
-          />
-          <Text
-            style={[
-              styles.modeTabText,
-              inputMode === "website" && styles.modeTabTextActive
-            ]}
-          >
-            {t("receiveModeWebsite")}
-          </Text>
-        </TouchableOpacity>
+    <View style={styles.container}>
+      <SanasaAppHeader
+        title="Card Provisioning"
+        subtitle="Write & Verify Physical NFC Cards"
+        statusBadge={
+          inputMode === "website"
+            ? { text: "Web Synced", color: "#10B981" }
+            : { text: "Manual Entry", color: "#FF9800" }
+        }
+        overlappingContent={
+          <View style={styles.headerOverlapCard}>
+            <TouchableOpacity
+              style={[
+                styles.modeTabBtn,
+                inputMode === "website" && styles.modeTabBtnActive
+              ]}
+              onPress={() => {
+                setInputMode("website");
+                if (manualUrlValidated && !params.cardUrl) {
+                  handleResetForNext();
+                }
+              }}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons
+                name="cellphone-link"
+                size={16}
+                color={inputMode === "website" ? "#10B981" : "#64748B"}
+              />
+              <Text
+                style={[
+                  styles.modeTabText,
+                  inputMode === "website" && styles.modeTabTextActive
+                ]}
+              >
+                {t("receiveModeWebsite")}
+              </Text>
+            </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[
-            styles.modeTabBtn,
-            inputMode === "manual" && styles.modeTabBtnActive
-          ]}
-          onPress={() => setInputMode("manual")}
-          activeOpacity={0.8}
-        >
-          <MaterialCommunityIcons
-            name="link-plus"
-            size={16}
-            color={inputMode === "manual" ? "#2563EB" : "#64748B"}
-          />
-          <Text
-            style={[
-              styles.modeTabText,
-              inputMode === "manual" && styles.modeTabTextActive
-            ]}
-          >
-            {t("enterUrlManually")}
-          </Text>
-        </TouchableOpacity>
-      </View>
+            <TouchableOpacity
+              style={[
+                styles.modeTabBtn,
+                inputMode === "manual" && styles.modeTabBtnActive
+              ]}
+              onPress={() => setInputMode("manual")}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons
+                name="link-plus"
+                size={16}
+                color={inputMode === "manual" ? "#10B981" : "#64748B"}
+              />
+              <Text
+                style={[
+                  styles.modeTabText,
+                  inputMode === "manual" && styles.modeTabTextActive
+                ]}
+              >
+                {t("enterUrlManually")}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        }
+      />
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
 
       {/* MANUAL URL INPUT SECTION (Section 8) */}
       {inputMode === "manual" && (
@@ -1541,7 +1558,8 @@ export default function NfcWriterScreen() {
           </View>
         </View>
       </Modal>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -1552,8 +1570,22 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
+    paddingTop: 12,
     paddingBottom: 40,
     gap: 16
+  },
+  headerOverlapCard: {
+    flexDirection: "row",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 4,
+    shadowColor: "#0D2A3A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "#E2E8F0"
   },
   btnRow: {
     flexDirection: "row",
@@ -1573,15 +1605,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 6,
     paddingVertical: 10,
-    borderRadius: 10
+    borderRadius: 12
   },
   modeTabBtnActive: {
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    borderWidth: 1,
+    borderColor: "#10B981"
   },
   modeTabText: {
     fontSize: 12,
@@ -1589,7 +1618,7 @@ const styles = StyleSheet.create({
     color: "#64748B"
   },
   modeTabTextActive: {
-    color: "#1E40AF",
+    color: "#065F46",
     fontWeight: "bold"
   },
   manualCard: {
@@ -1672,7 +1701,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#10B981",
     paddingVertical: 10,
     borderRadius: 10
   },
@@ -1737,9 +1766,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "rgba(13, 42, 58, 0.08)",
     borderWidth: 1,
-    borderColor: "#BFDBFE",
+    borderColor: "rgba(13, 42, 58, 0.2)",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8
@@ -1747,7 +1776,7 @@ const styles = StyleSheet.create({
   previewAccessBtnText: {
     fontSize: 11,
     fontWeight: "bold",
-    color: "#1E40AF"
+    color: "#0D2A3A"
   },
   bannerUrlBox: {
     backgroundColor: "#F8FAFC",
@@ -1827,9 +1856,9 @@ const styles = StyleSheet.create({
     width: 130,
     height: 130,
     borderRadius: 65,
-    backgroundColor: "rgba(37, 99, 235, 0.2)",
+    backgroundColor: "rgba(16, 185, 129, 0.2)",
     borderWidth: 2,
-    borderColor: "#2563EB"
+    borderColor: "#10B981"
   },
   radarCenterCircle: {
     width: 90,
@@ -1851,7 +1880,7 @@ const styles = StyleSheet.create({
     marginTop: 14
   },
   scanAntennaBtn: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#0D2A3A",
     borderRadius: 12,
     paddingVertical: 13,
     alignItems: "center",
