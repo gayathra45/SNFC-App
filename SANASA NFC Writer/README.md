@@ -74,17 +74,17 @@ graph TB
         ASSESSOR["🛵 Field Insurance Assessor<br/>(SClaim Go Inspector)"]
     end
 
-    DESK <-->|1. Fast Pairing (PIN / QR)| SOCKET
-    NFC_PHONE <-->|2. Encrypted WebSocket Link| SOCKET
-    DESK -->|3. Dispatch Card Write Job| SOCKET
-    SOCKET -->|4. Push Encoding Payload| NFC_PHONE
-    NFC_PHONE -->|5. Contactless RF NDEF Write| SMART_CARD
-    NFC_PHONE -->|6. Stage 1 & 2 Verification| API
+    DESK -->|"1. Fast Pairing via PIN or QR"| SOCKET
+    NFC_PHONE -->|"2. Encrypted WebSocket Link"| SOCKET
+    DESK -->|"3. Dispatch Card Write Job"| SOCKET
+    SOCKET -->|"4. Push Encoding Payload"| NFC_PHONE
+    NFC_PHONE -->|"5. Contactless RF NDEF Write"| SMART_CARD
+    NFC_PHONE -->|"6. Stage 1 and 2 Verification"| API
     API --> DB
 
-    SMART_CARD -.->|Roadside Contactless Tap| DRIVER_PHONE
-    DRIVER_PHONE -->|View Live Pass & File Scene Claim| API
-    ASSESSOR -->|Inspect Digital Credentials| API
+    SMART_CARD -.->|"Roadside Contactless Tap"| DRIVER_PHONE
+    DRIVER_PHONE -->|"View Live Pass and File Scene Claim"| API
+    ASSESSOR -->|"Inspect Digital Credentials"| API
 ```
 
 ---
