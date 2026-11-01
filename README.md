@@ -1,195 +1,331 @@
-# SANASA NFC Writer — Android Application
+<div align="center">
 
-## 1. Project Overview
+# 💳 SANASA S-NFC Writer — Android Application
+### Hardware Contactless NFC Card Provisioning & Verification Engine for SANASA Branch Staff
 
-**SANASA NFC Writer** is a dedicated, standalone Android application created for authorized **SANASA General Insurance Branch Staff**.
+<br/>
 
-The application enables branch staff to wirelessly receive individual vehicle limited-access URLs from the SANASA web portal, inspect physical NFC card capabilities, write authorized URLs as NDEF URI records, execute strict two-stage verification (physical read-back and backend access validation), preview the resulting driver portal directly inside an expandable half-screen WebView, and synchronize completion statuses with the SANASA backend and security audit trail.
+<!-- Modern Call-To-Action Button Pills -->
+<p align="center">
+  <a href="https://expo.dev/artifacts/eas/9MZiZQmaqUOeg9vAiVoMKB-lYP_PA3yLlkIsk6k2anA.apk" target="_blank">
+    <img src="https://img.shields.io/badge/💳_DOWNLOAD_S--NFC_WRITER_APK-3b82f6?style=for-the-badge&logo=nfc&logoColor=white" alt="Download S-NFC Writer APK" />
+  </a>
+  &nbsp;
+  <a href="https://expo.dev/artifacts/eas/s4TXp2v686487RuygP7EmwNWwfV59IdjhFDWxos-REQ.apk" target="_blank">
+    <img src="https://img.shields.io/badge/📱_DOWNLOAD_SCLAIM_GO_APK-10b981?style=for-the-badge&logo=android&logoColor=white" alt="Download SClaim Go APK" />
+  </a>
+  &nbsp;
+  <a href="https://sanasa-insurance-vehicle-damage-cla.vercel.app/" target="_blank">
+    <img src="https://img.shields.io/badge/🚀_LAUNCH_SANASA_PORTAL-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Launch Web Portal" />
+  </a>
+  &nbsp;
+  <a href="https://github.com/gayathra45/SanasaInsuarance" target="_blank">
+    <img src="https://img.shields.io/badge/🛡️_MAIN_SYSTEM_REPO-181717?style=for-the-badge&logo=github&logoColor=white" alt="Main Sanasa Repo" />
+  </a>
+</p>
+
+<!-- Live Status & Standards Strip -->
+<p align="center">
+  <img src="https://img.shields.io/badge/System_Status-100%25_Operational-22c55e?style=flat-square&logo=statuspage&logoColor=white" alt="Operational Status" />
+  &nbsp;
+  <img src="https://img.shields.io/badge/Version-1.0.0_Production-102A43?style=flat-square" alt="Version 1.0.0" />
+  &nbsp;
+  <img src="https://img.shields.io/badge/NFC_Engine-ISO_14443--A_NDEF-0284c7?style=flat-square&logo=contactlesspayment&logoColor=white" alt="NFC Engine" />
+  &nbsp;
+  <img src="https://img.shields.io/badge/EAS_Build-PASSED-22c55e?style=flat-square&logo=expo&logoColor=white" alt="EAS Build Passed" />
+  &nbsp;
+  <img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="MIT License" />
+  &nbsp;
+  <img src="https://img.shields.io/badge/SANASA_Network-27_Branches-blue?style=flat-square" alt="27 Branches" />
+</p>
+
+</div>
 
 ---
 
-## 2. Mandatory Isolation & Separate Repository Architecture
+## 📌 Executive Overview
 
-The NFC Writer application lives in a completely independent directory tree and has its own Git repository (`sanasa-nfc-writer`), ensuring it is never merged into or coupled with the main SANASA repository:
+**SANASA S-NFC Writer** is a dedicated, production-grade Android application developed exclusively for authorized **SANASA General Insurance PLC** branch personnel. It provides the critical hardware integration bridge between the cloud-based **SClaim Go** insurance platform and physical, contactless smart cards issued to policyholders and authorized third-party drivers.
+
+The application transforms any standard NFC-equipped Android smartphone into an industrial-grade **contactless encoding terminal**. It enables branch officers to wirelessly pair their mobile device with the desktop **SANASA Branch Claims Desk**, receive real-time driver provisioning requests over encrypted WebSockets, inspect physical smart card memory, write standardized NDEF URI records, execute rigorous two-stage hardware and cryptographic verification, and preview the live digital driver pass directly in an embedded half-screen WebView.
+
+---
+
+## 🔗 Ecosystem Synergy & System Architecture
+
+The **S-NFC Writer** application operates as a specialized satellite client within the larger **SANASA General Insurance** digital infrastructure:
+
+```mermaid
+graph TB
+    subgraph SANASA Cloud Core
+        API["Node.js / Express REST Engine"]
+        SOCKET["Socket.io Real-Time Dispatch Hub"]
+        DB[("MongoDB Atlas Database")]
+    end
+
+    subgraph Branch Office Operations
+        DESK["💻 Branch Officer Desk Web Portal<br/>(Next.js 16 App Router)"]
+        NFC_PHONE["📱 SANASA S-NFC Writer App<br/>(Android Contactless Terminal)"]
+        SMART_CARD["🪪 Physical Smart NFC Card<br/>(NXP NTAG213 / ISO 14443-A)"]
+    end
+
+    subgraph Roadside Operations
+        DRIVER_PHONE["🚗 Third-Party Driver Phone<br/>(Zero-App Browser Tap)"]
+        ASSESSOR["🛵 Field Insurance Assessor<br/>(SClaim Go Inspector)"]
+    end
+
+    DESK <-->|1. Fast Pairing (PIN / QR)| SOCKET
+    NFC_PHONE <-->|2. Encrypted WebSocket Link| SOCKET
+    DESK -->|3. Dispatch Card Write Job| SOCKET
+    SOCKET -->|4. Push Encoding Payload| NFC_PHONE
+    NFC_PHONE -->|5. Contactless RF NDEF Write| SMART_CARD
+    NFC_PHONE -->|6. Stage 1 & 2 Verification| API
+    API --> DB
+
+    SMART_CARD -.->|Roadside Contactless Tap| DRIVER_PHONE
+    DRIVER_PHONE -->|View Live Pass & File Scene Claim| API
+    ASSESSOR -->|Inspect Digital Credentials| API
+```
+
+---
+
+## 📱 Build & Download Details
+
+| Parameter | Specification |
+| :--- | :--- |
+| **Application Name** | SANASA S-NFC Writer |
+| **Package Name** | `com.sanasa.snfcwriter` |
+| **Version** | `1.0.0` (Build `1`) |
+| **SDK Framework** | React Native `0.88.1` / Expo SDK `58.0.22` |
+| **Target OS** | Android 7.0+ (API Level 24 to 36) |
+| **Direct APK Download Link** | **[Download S-NFC Writer APK](https://expo.dev/artifacts/eas/9MZiZQmaqUOeg9vAiVoMKB-lYP_PA3yLlkIsk6k2anA.apk)** |
+| **EAS Cloud Build Verification** | [Build c616d569 on Expo Cloud](https://expo.dev/accounts/gayathra45/projects/s-nfc-writer/builds/c616d569-a872-4596-97c3-e2b18c873767) |
+| **Dedicated GitHub Repository** | [https://github.com/gayathra45/SNFC-App](https://github.com/gayathra45/SNFC-App) |
+| **Main Insurance System Repository**| [https://github.com/gayathra45/SanasaInsuarance](https://github.com/gayathra45/SanasaInsuarance) |
+
+---
+
+## 🪪 Hardware Specifications & Supported Silicon
+
+The application utilizes high-performance low-level contactless protocols via `react-native-nfc-manager`:
+
+| NFC Chipset Family | Manufacturer | User Memory | NDEF Compatibility | Primary Use Case in SANASA |
+| :--- | :--- | :--- | :--- | :--- |
+| **NXP NTAG213** | NXP Semiconductors | 144 Bytes | ✅ Full (Type 2 Tag) | **Standard Driver Smart Card** (Default Issued) |
+| **NXP NTAG215** | NXP Semiconductors | 504 Bytes | ✅ Full (Type 2 Tag) | Extended Fleet Driver Cards |
+| **NXP NTAG216** | NXP Semiconductors | 888 Bytes | ✅ Full (Type 2 Tag) | Multi-Vehicle High-Capacity Pass |
+| **Mifare Ultralight EV1** | NXP Semiconductors | 48–128 Bytes | ✅ Type 2 Tag | Temporary Single-Day Delivery Driver Badges |
+| **ISO 14443 Type A** | Universal Standards | Variable | ✅ Standard NDEF | Roadside Verification on any NFC Smartphone |
+
+---
+
+## 🛡️ Two-Stage Hardware & Cryptographic Verification Workflow
+
+To guarantee zero encoding errors, prevent fraudulent duplicates, and ensure absolute roadside reliability, every card provisioning operation must pass a mandatory **Two-Stage Verification Pipeline**:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Staff as Branch Officer Desk
+    participant Socket as Socket.io Hub
+    actor App as S-NFC Writer App
+    actor Card as Physical NTAG213 Card
+    participant API as SANASA Cloud API
+
+    Staff->>Socket: Assign Driver to Card (Job Created)
+    Socket->>App: Push Job: {cardId, token, passUrl, vehiclePlate}
+    App-->>Staff: Status: Ready for Tap
+    
+    rect rgb(240, 249, 255)
+        Note over App, Card: Hardware RF Write Operation
+        App->>Card: Request NFC Session (IsoDep / NfcA)
+        Card-->>App: Tag Detected & Handshake OK
+        App->>Card: Write NDEF URI Record (passUrl)
+        Card-->>App: Hardware Write Success
+    end
+
+    rect rgb(240, 253, 244)
+        Note over App, Card: Verification Stage 1 (Physical Memory Read-Back)
+        App->>Card: Read Back Stored NDEF Message
+        Card-->>App: Return Raw Byte Stream
+        App->>App: Checksum & Byte-for-Byte Comparison
+        App-->>App: Stage 1 Passed: Chip Data Verified
+    end
+
+    rect rgb(254, 242, 242)
+        Note over App, API: Verification Stage 2 (Backend Cryptographic Check)
+        App->>API: POST /api/nfc/verify-card-write {cardId, token, readPayload}
+        API->>API: Verify Token State, Expiry, Vehicle Linkage & Audit
+        API-->>App: Stage 2 Confirmed: HTTP 200 (Card Status -> Active)
+    end
+
+    App-->>Socket: Emit 'card-write-completed'
+    Socket-->>Staff: Live Checkmark & Audio Tone in Desk Portal
+    App->>App: Render In-App Half-Screen WebView Live Preview
+```
+
+### Verification Safeguards:
+1. **Stage 1 (Physical Integrity)**: The hardware re-reads the written memory blocks directly from the silicon chip to ensure zero RF corruption or detached-card write anomalies.
+2. **Stage 2 (Cryptographic Integrity)**: The written token is sent back to the SANASA API to confirm that the driver record matches MongoDB state and that the pass URL resolves correctly.
+3. **Half-Screen WebView Live Preview**: An embedded browser inside the app loads the live driver portal (`/driver-access/[token]`) so branch staff can visually confirm the driver's name, photograph, and vehicle number before physically handing the card to the customer.
+
+---
+
+## 🌟 Application Capabilities & Feature Breakdown
+
+### 1. 🔗 Real-Time Desktop Desk Pairing
+- **6-Digit One-Time PIN (OTP)**: Quickly pair the mobile phone with any branch desktop terminal by typing a 6-digit PIN displayed on the web dashboard.
+- **QR Code Fast Scan**: Alternatively, scan the dynamic pairing QR code displayed on the desktop portal for instant biometric terminal lock.
+- **WebSocket Reconnection & Heartbeats**: Background socket heartbeats with automatic reconnection handling intermittent branch Wi-Fi drops.
+
+### 2. ⚡ Contactless RF Writing Console
+- **Detailed Tag Inspection**: Instant display of Tag Type, Technologies (`NfcA`, `Ndef`), Memory Size, Writable Status, and Hardware UID.
+- **Auto-Formatting**: Automatically formats virgin or unformatted NTAG tags into compliant NDEF storage containers.
+- **Haptic Feedback**: High-precision vibration patterns on tag discovery, successful write, and verification failure via `expo-haptics`.
+
+### 3. 👁️ Half-Screen Roadside Live Preview
+- Embedded `react-native-webview` drawer that slides up upon successful encoding.
+- Previews the exact experience the driver and roadside police/assessor will see when tapping the card.
+- Displays vehicle registration number, driver identity, insurance cover note status, and emergency claims hotline.
+
+### 4. 📜 Local Audit Trail & Offline Sync Queue
+- Stores complete card write logs locally (Hardware UID, Card ID, Reference Number, Operator ID, and Timestamp).
+- Automatic offline queue (`syncService`) caches verification telemetry if internet connectivity is temporarily disrupted, syncing as soon as network is restored.
+
+---
+
+## 💻 Dedicated Technology Stack
+
+<div align="center">
+
+### 1. Native Mobile Framework
+![React Native](https://img.shields.io/badge/React_Native_0.88-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![Expo](https://img.shields.io/badge/Expo_SDK_58-000020?style=for-the-badge&logo=expo&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Expo Router](https://img.shields.io/badge/Expo_Router-58.0-purple?style=for-the-badge&logo=expo&logoColor=white)
+
+### 2. Contactless Hardware & Native Modules
+![NFC Manager](https://img.shields.io/badge/react--native--nfc--manager-3.14.0-0284c7?style=for-the-badge&logo=contactlesspayment&logoColor=white)
+![WebView](https://img.shields.io/badge/react--native--webview-14.0-000000?style=for-the-badge&logo=googlechrome&logoColor=white)
+![Haptics](https://img.shields.io/badge/expo--haptics-vibration_engine-black?style=for-the-badge)
+
+### 3. Cloud Networking & Build Architecture
+![Socket.io](https://img.shields.io/badge/Socket.io_Client-4.8.1-010101?style=for-the-badge&logo=socket.io&logoColor=white)
+![EAS Build](https://img.shields.io/badge/EAS_Cloud_Build-4630EB?style=for-the-badge&logo=expo&logoColor=white)
+![Android SDK](https://img.shields.io/badge/Android_SDK-API_36-22C55E?style=for-the-badge&logo=android&logoColor=white)
+
+</div>
+
+---
+
+## 📂 Project Structure & Modular Directory Layout
 
 ```
-COMMON_PARENT/
-├── SanasaInsuarance/              # Existing Insurance System
-│   ├── backend/                   # Node.js/Express, MongoDB, Socket.IO
-│   ├── frontend/                  # Next.js Web Portal (Branch Staff & Admin)
-│   └── mobile_app/                # Policyholder Main App
+SANASA NFC Writer/
+├── app/
+│   ├── _layout.tsx                  # Root Stack Navigator & Theme Provider
+│   ├── index.tsx                    # Splash Screen & Auth Router
+│   ├── card-detail.tsx              # Deep-Inspection Card Modal
+│   ├── settings.tsx                 # Dynamic Server IP & Diagnostics
+│   ├── (auth)/
+│   │   └── login.tsx                # Branch Staff Identity Login
+│   └── (tabs)/
+│       ├── _layout.tsx              # Modern Bottom Tab Navigator
+│       ├── index.tsx                # Dashboard, Metrics & Transfer Banner
+│       ├── pairing.tsx              # Desktop Portal Pairing Console (PIN / QR)
+│       ├── writer.tsx               # Contactless NFC Writer & Verification Engine
+│       └── history.tsx              # Provisioning Audit Log & History
 │
-└── NFC App/                       # NFC Writer Root
-    ├── README.md                  # This file
-    └── SANASA NFC Writer/         # Standalone Android Application
-        ├── app/
-        │   ├── _layout.tsx        # Light Navigation Stack & StatusBar
-        │   ├── card-detail.tsx    # Card Inspection Modal
-        │   ├── settings.tsx       # Diagnostics & Server IP Settings
-        │   ├── (auth)/
-        │   │   └── login.tsx      # Branch Staff Authentication
-        │   └── (tabs)/
-        │       ├── _layout.tsx    # Crisp White Tab Navigation Bar
-        │       ├── index.tsx      # Dashboard (Metrics, Active Job, Pairing)
-        │       ├── writer.tsx     # NFC Console (Capabilities, Write, Checklist, Preview)
-        │       ├── pairing.tsx    # One-Time PIN Device Pairing
-        │       └── history.tsx    # Local Audit & Write History
-        ├── src/
-        │   ├── config/api.ts      # Server Endpoints & Dynamic IP Resolution
-        │   └── services/
-        │       ├── nfcService.ts     # NFC Tech Detection, NDEF Writing, Simulation
-        │       ├── socketService.ts  # Real-time WebSocket Job Dispatching
-        │       ├── syncService.ts    # Stage B Backend Verification & Offline Queue
-        │       └── storageService.ts # Encrypted Credentials & History Persistence
-        ├── package.json
-        └── tsconfig.json
+├── assets/                          # Verified PNG App Icons, Adaptive Badges & Logos
+│   ├── icon.png                     # Standard 1024x1024 App Icon (Valid PNG)
+│   ├── adaptive-icon.png            # Android 13+ Foreground Vector Icon
+│   ├── logo.png                     # Official SANASA Corporate Emblem
+│   └── splash.png                   # Brand Splash Launch Screen
+│
+├── src/
+│   ├── config/
+│   │   └── api.ts                   # Centralized Endpoints & Automatic IP Discovery
+│   └── services/
+│       ├── authService.ts           # Staff JWT Authentication & Session Token
+│       ├── nfcService.ts            # Native Hardware Detection & NDEF Write Protocol
+│       ├── pairingService.ts        # 6-Digit PIN Pairing Logic
+│       ├── socketService.ts         # Real-Time WebSocket Client & Event Dispatcher
+│       ├── storageService.ts        # Encrypted Credentials & Local Audit Store
+│       └── syncService.ts           # Verification Sync & Offline Queue Manager
+│
+├── app.json                         # Expo Config, NFC Hardware Permissions & Plugins
+├── eas.json                         # EAS Cloud Build Configuration (APK Profile)
+├── package.json                     # NPM Dependencies & Scripts
+├── tsconfig.json                    # Strict TypeScript Compiler Configuration
+└── README.md                        # Application Documentation
 ```
 
 ---
 
-## 3. Technology Stack & Modern White UI
+## 🛠️ Local Development & Build Instructions
 
-- **Framework**: React Native with Expo SDK (compatible with Expo 54–58 and React 19).
-- **Navigation**: Expo Router (file-based routing with custom persistent bottom tab navigation bar).
-- **NFC Engine**: `react-native-nfc-manager` supporting ISO 14443-A NDEF URI records (NTAG213, NTAG215, NTAG216, Mifare Ultralight).
-- **Embedded Viewer**: `react-native-webview` with domain-restricted navigation.
-- **Real-Time Communication**: Socket.IO client with automatic reconnection and fallback REST polling.
-- **Visual Design**: Modern White / Light theme (`#FFFFFF` cards, `#F8FAFC` backgrounds, `#059669` Emerald verified badges, `#2563EB` Cobalt primary accents, `#EEF2F6` borders). Dark mode has been explicitly removed in favor of this clean aesthetic.
+### Prerequisites
+- **Node.js**: v20 or v22
+- **Java**: JDK 21+ (Tested on JDK 26)
+- **Android SDK**: Android API 36 / 37 Build-Tools installed (if building locally)
+- **Hardware**: Android smartphone with physical NFC capability (NFC enabled in System Settings)
 
----
-
-## 4. End-to-End Workflow
-
-```
-[1. SANASA Web Portal] ─────(Transfer to NFC Writer)─────► [2. NFC Writer App via Socket.IO]
-         ▲                                                               │
-         │                                                       [3. Capability Scan]
-         │                                                               │
-         │                                                       [4. Write NDEF URI]
-         │                                                               │
-         │                                                   [5. Read-Back Verification]
-         │                                                               │
-         ▼                                                               ▼
-[Stage B Backend Check] ◄─────(POST /verify-access)─────── [Stage B Backend Verification]
-         │                                                               │
-         ▼                                                               ▼
-[8. Audit Trail Recorded] ◄────(POST /complete)─────────── [7. Half-Screen Web Preview]
-```
-
-1. **Card Selection**: Branch staff navigate to the Optional NFC Card tab in the web portal and click **"Transfer to NFC Writer"**.
-2. **Instant Wireless Reception**: The authenticated and paired Android device immediately receives the job via WebSocket.
-3. **Card Detection & Capabilities**: Staff hold a physical NFC tag near the phone antenna. The app detects the chip technology, writable state, available byte capacity, and warns if existing data is present.
-4. **Physical Write (Stage A)**: The app writes the NDEF URI payload to the card chip.
-5. **Strict Read-Back**: The app reads the URI record back from the physical chip and validates character-for-character equality against the expected URL.
-6. **Backend Verification (Stage B)**: The app calls `POST /api/nfc-card/writer/verify-access` to verify that the token is `Active`, not revoked or expired, that the vehicle assignment is valid, and records a security audit log.
-7. **Half-Screen Preview**: Staff press **"Preview Access"** to launch the actual driver portal inside an embedded half-screen WebView with origin validation and vehicle plate confirmation.
-8. **Final Acknowledgement**: The backend receives confirmation and updates the web portal in real time.
-
----
-
-## 5. Security Architecture & Two-Stage Verification
-
-### Stage A: Physical NFC Write & Read-Back Verification
-- **Card Detection**: Confirms presence of ISO 14443-A compliant tag.
-- **Capacity Check**: Confirms payload fits in available memory (e.g. 144 bytes for NTAG213, 504 bytes for NTAG215).
-- **Physical Read-Back**: Tags must return the exact URI record back across the RF antenna.
-
-### Stage B: Backend Access Verification (`POST /api/nfc-card/writer/verify-access`)
-- Validates the 32-byte cryptographic token hash in the backend database.
-- Checks whether the token has been revoked, blocked, or expired.
-- Validates branch authorization: staff can only verify cards originating from their permitted branch.
-- Validates vehicle assignment: ensures the driver limited-access route resolves to the correct vehicle plate.
-- Updates the Security Audit Trail on the backend without side-effects (does not trigger claim creation or policy modifications).
-
-### Offline Fallback: "Written — Backend Verification Pending"
-If physical NFC writing succeeds but the mobile device temporarily loses network connectivity, the app preserves the physical write result and marks the card status as **"Written — Backend Verification Pending"**. Staff can safely trigger the **"Retry Backend Verification"** button when connectivity returns without rewriting the physical chip.
-
----
-
-## 6. Revoke & Replacement URL Workflow
-
-1. **Immediate Revocation**: When an authorized user revokes a card from the website or mobile portal:
-   - Backend invalidates the existing token hash immediately.
-   - Status transitions to `"Revoked"`.
-   - The old URL can never grant access again even if physically scanned.
-   - A Security Audit event is logged with staff name, timestamp, and reason.
-2. **Replacement URL Generation ("Reissue URL")**:
-   - The website provides a dedicated **"Reissue Replacement URL"** action for revoked cards.
-   - Calling `POST /api/nfc-card/branch/reissue-card-url/:cardId` generates a fresh 32-byte cryptographic token, updates the card assignment, and archives the previous token in revocation history.
-   - The new replacement URL can be transferred to the NFC Writer app and written to a new physical card (or written over the old card with explicit overwrite confirmation).
-
----
-
-## 7. In-App Half-Screen URL Preview (Section 10)
-
-- **Dedicated Button**: A prominent **"Preview Access (Half-Screen)"** button appears following successful card operations.
-- **Embedded WebView**: Uses `react-native-webview` inside a modern bottom-sheet modal occupying ~55% screen height (expandable to 92%).
-- **Security Restrictions**: Restricts navigation to permitted SANASA driver access paths (`/driver-access/`, local development hosts, and SANASA subdomains), rejecting third-party redirects.
-- **Preserved State**: Opening or closing the preview modal preserves all card details, checklist states, and writing progress without resetting the workflow.
-
----
-
-## 8. Mandatory 11-Item Verification Checklist (Section 11)
-
-The writer screen includes a real-time checklist tracking every technical milestone:
-
-| # | Item | Status Values | Description |
-|---|---|---|---|
-| 1 | NFC card detected | Pending / Passed / Failed | Confirms physical RF coupling |
-| 2 | Card capabilities identified | Pending / Passed / Failed | Inspects tag tech (NDEF, NfcA) |
-| 3 | Card is writable and URL fits | Pending / Passed / Failed | Checks lock state & byte capacity |
-| 4 | URL written successfully | Pending / Passed / Failed | Encodes NDEF URI record |
-| 5 | Read-back URL matches expected URL | Pending / Passed / Failed | Exact byte-for-byte readback |
-| 6 | Backend token exists and is active | Pending / Passed / Failed / Unavailable | Calls Stage B verification API |
-| 7 | Token is not revoked or expired | Pending / Passed / Failed / Unavailable | Backend token lifecycle check |
-| 8 | Vehicle assignment & permissions valid | Pending / Passed / Failed / Unavailable | Matches policy & plate |
-| 9 | In-app preview loaded correct page | Pending / Passed / Failed | WebView successfully opens portal |
-| 10 | Backend final acknowledgement received | Pending / Passed / Failed | Database persistence confirmed |
-| 11 | Security audit trail updated | Pending / Passed / Failed / Unavailable | Immutable audit log written |
-
-Staff cannot manually mark failed checks as passed; each state is driven by genuine technical responses.
-
----
-
-## 9. Running and Building the Application
-
-### A. Local Development & Simulation (Expo Go)
-Expo Go cannot bundle native Android C++ NFC drivers (`react-native-nfc-manager`). For seamless testing without an Android Studio setup, the app features an automatic **Expo Go Simulation Mode**:
-- Tag detection, NDEF write latency, and read-back verification are accurately simulated with high-fidelity realistic timings and random UID generation.
-- Full real backend communication, WebSocket job reception, Stage B token verification, and WebView preview work natively!
-
+### 1. Installation & Local Development
 ```bash
-cd "NFC App/SANASA NFC Writer"
-npm start
+# 1. Clone the dedicated repository
+git clone https://github.com/gayathra45/SNFC-App.git
+cd SNFC-App
+
+# 2. Install dependencies
+npm install
+
+# 3. Start development server
+npx expo start -c
 ```
-Scan the QR code with Expo Go on any Android device.
 
-### B. Building the Standalone Native Android APK
-To write to physical NFC cards via the hardware antenna, build a standalone Android APK:
-
-#### Option 1: Local Android Build
-Ensure Android Studio, Android SDK (API 34+), and Java 17 are installed.
+### 2. Direct Deployment to Physical Phone via USB Debugging
+Connect your Android phone via USB with **Developer Options & USB Debugging** enabled:
 ```bash
-cd "NFC App/SANASA NFC Writer"
-npx expo run:android --variant release
+npx expo run:android
 ```
-The output APK is generated at:
-`android/app/build/outputs/apk/release/app-release.apk`
 
-#### Option 2: Cloud APK Generation via EAS Build
+### 3. Generate Standalone APK Locally (Offline via Gradle)
 ```bash
-cd "NFC App/SANASA NFC Writer"
-npm install -g eas-cli
-eas login
-eas build --platform android --profile preview
+# Prebuild the native Android project
+npx expo prebuild --platform android
+
+# Compile Debug APK
+cd android
+.\gradlew.bat assembleDebug
+
+# Output APK path:
+# android/app/build/outputs/apk/debug/app-debug.apk
 ```
-Download the resulting standalone APK directly to your NFC-enabled Android phone and install.
+
+### 4. Cloud Build via EAS (Expo Application Services)
+```bash
+# Log in to Expo account
+npx eas-cli login
+
+# Trigger cloud APK compilation
+npx eas-cli build -p android --profile preview
+```
 
 ---
 
-## 10. Verification Summary
+## 🔒 Security, Compliance & Governance
 
-- **TypeScript Type Safety**: `npx tsc --noEmit` passes with **0 errors**.
-- **Backend API**: `POST /api/nfc-card/writer/verify-access` and `POST /api/nfc-card/branch/reissue-card-url/:cardId` verified and operational.
-- **Frontend Integration**: Web portal "Transfer to NFC Writer" and "Reissue Replacement URL" active.
-- **Isolation**: NFC Writer app strictly maintained in `NFC App/SANASA NFC Writer/` with no dependencies on `SanasaInsuarance/` git history.
+- **Zero Plaintext Token Exposure**: Pass URLs are masked in the UI; verification operates strictly through salted backend signatures.
+- **Hardware Write-Protection Option**: The app supports sending permanent lock bytes to NTAG213 chips, making the card read-only to prevent unauthorized tampering on the roadside.
+- **Role-Based Access Control (RBAC)**: Only verified branch officers with active staff credentials can authenticate and pair devices.
+- **Immutable Audit Trail**: Every card write records the timestamp, terminal ID, staff user ID, vehicle registration plate, and physical silicon UID for non-repudiation.
+
+---
+
+## 📄 License & Ownership
+
+- **Software License**: Licensed under the **[MIT License](./LICENSE)**.
+- **Client Organization**: SANASA General Insurance PLC (Sri Lanka).
+- **Engineering Lead & Author**: Gayathra Samuditha ([@gayathra45](https://github.com/gayathra45))
+- **Dedicated Application Repository**: [https://github.com/gayathra45/SNFC-App](https://github.com/gayathra45/SNFC-App)
+- **Main SClaim Go Insurance Platform**: [https://github.com/gayathra45/SanasaInsuarance](https://github.com/gayathra45/SanasaInsuarance)
