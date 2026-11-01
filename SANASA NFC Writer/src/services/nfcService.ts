@@ -16,8 +16,13 @@ export interface NfcDiagnosticStatus {
 export interface DetectedTagInfo {
   tagUid: string;
   techList: string[];
-  maxSize?: number;
-  isWritable?: boolean;
+  maxSize: number;
+  isWritable: boolean;
+  isLocked: boolean;
+  canFitUrl: boolean;
+  ndefSupported: boolean;
+  existingDataPreview?: string;
+  statusMessage: string;
 }
 
 export interface NfcWriteResult {
@@ -26,6 +31,7 @@ export interface NfcWriteResult {
   tagTech: string;
   readBackUrl: string;
   readBackVerified: boolean;
+  lockedPermanently?: boolean;
   error?: string;
 }
 
@@ -107,12 +113,29 @@ class NfcService {
   }
 
   /**
-   * Request tag scan and read physical UID / tech
+   * Request tag scan and read physical UID, capabilities, and existing data
    */
-  async detectTag(): Promise<DetectedTagInfo | null> {
+  async detectTag(targetUrl?: string): Promise<DetectedTagInfo | null> {
+    if (isRunningInExpoGo) {
+      await new Promise((r) => setTimeout(r, 600));
+      const simulatedUid = "04:A2:8E:B1:F4:7D:90";
+      const maxSize = 540;
+      const canFitUrl = targetUrl ? targetUrl.length + 10 <= maxSize : true;
+      return {
+        tagUid: simulatedUid,
+        techList: ["android.nfc.tech.Ndef", "android.nfc.tech.NfcA", "android.nfc.tech.MifareUltralight"],
+        maxSize,
+        isWritable: true,
+        isLocked: false,
+        canFitUrl,
+        ndefSupported: true,
+        existingDataPreview: undefined,
+        statusMessage: "Ready to Write (Expo Go Simulation Mode)"
+      };
+    }
+
     try {
       await this.init();
-      // Request Ndef technology
       await NfcManager.requestTechnology(NfcTech.Ndef, {
         alertMessage: "Hold physical card against the back of your phone."
       });
@@ -124,18 +147,52 @@ class NfcService {
 
       try {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } catch {
-        // safe fallback
-      }
+      } catch {}
 
       const tagUid = tag.id || "";
-      const techList = tag.techTypes || [];
+      const techList = tag.techTypes || ["NDEF"];
+      const maxSize = (tag as any).maxSize || 540;
+      const isWritable = (tag as any).isWritable !== false;
+      const isLocked = !isWritable;
+      const ndefSupported = techList.some((t: string) => t.toLowerCase().includes("ndef"));
+
+      // Read existing data preview if available
+      let existingDataPreview: string | undefined = undefined;
+      const ndefMessage = tag.ndefMessage || [];
+      if (ndefMessage.length > 0 && ndefMessage[0].payload) {
+        try {
+          existingDataPreview = Ndef.uri.decodePayload(new Uint8Array(ndefMessage[0].payload));
+        } catch {
+          existingDataPreview = "Existing NDEF record detected";
+        }
+      }
+
+      const urlLen = targetUrl ? targetUrl.length + 10 : 0;
+      const canFitUrl = targetUrl ? urlLen <= maxSize : true;
+
+      let statusMessage = "Ready to Write";
+      if (!ndefSupported) {
+        statusMessage = "Unsupported Card (Non-NDEF)";
+      } else if (isLocked) {
+        statusMessage = "Card Is Read-Only / Locked";
+      } else if (!canFitUrl) {
+        statusMessage = "Insufficient Capacity";
+      } else if (existingDataPreview) {
+        statusMessage = "Card Detected (Contains Existing Data)";
+      } else {
+        statusMessage = "Ready to Write (NDEF Supported)";
+      }
 
       return {
         tagUid,
         techList,
-        maxSize: (tag as any).maxSize || 540,
-        isWritable: (tag as any).isWritable !== false
+        maxSize,
+        isWritable,
+        isLocked,
+        canFitUrl,
+        ndefSupported,
+        existingDataPreview,
+        statusMessage
       };
     } catch (err: any) {
       console.warn("[NfcService] Detect tag error:", err.message);
@@ -148,7 +205,10 @@ class NfcService {
   /**
    * Write exact NDEF URI record and read-back verify
    */
-  async writeAndVerifyUri(targetUrl: string): Promise<NfcWriteResult> {
+  async writeAndVerifyUri(
+    targetUrl: string,
+    options?: { lockPermanently?: boolean }
+  ): Promise<NfcWriteResult> {
     if (!targetUrl || !targetUrl.trim()) {
       return {
         success: false,
@@ -161,6 +221,7 @@ class NfcService {
     }
 
     const cleanUrl = targetUrl.trim();
+    const lockPermanently = !!options?.lockPermanently;
 
     // In Expo Go, native NFC hardware drivers cannot be loaded.
     // Provide a high-fidelity simulation so staff can test the end-to-end workflow immediately.
@@ -185,7 +246,8 @@ class NfcService {
         tagUid: randomBytes,
         tagTech: "NDEF (Expo Go Simulation)",
         readBackUrl: cleanUrl,
-        readBackVerified: true
+        readBackVerified: true,
+        lockedPermanently: lockPermanently
       };
     }
 
@@ -201,6 +263,11 @@ class NfcService {
       const tagUid = tag?.id || "";
       const tagTech = tag?.techTypes?.join(", ") || "NDEF";
 
+      // Check writable
+      if ((tag as any).isWritable === false) {
+        throw new Error("Card is locked / permanently read-only and cannot be written.");
+      }
+
       // 2. Encode NDEF URI Record
       const bytes = Ndef.encodeMessage([Ndef.uriRecord(cleanUrl)]);
       if (!bytes) {
@@ -212,9 +279,7 @@ class NfcService {
 
       try {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      } catch {
-        // fallback
-      }
+      } catch {}
 
       // 4. Immediate Read-Back from Tag for Strict Verification
       const readTag = await NfcManager.getTag();
@@ -226,9 +291,7 @@ class NfcService {
         try {
           readBackUri = Ndef.uri.decodePayload(new Uint8Array(firstRecord.payload));
         } catch {
-          // Alternative manual payload decoding if decodePayload format differs
           const payloadArray = Array.from(new Uint8Array(firstRecord.payload));
-          // First byte of URI record is prefix code
           const uriPrefixCodes = [
             "",
             "http://www.",
@@ -256,26 +319,34 @@ class NfcService {
         );
       }
 
+      // Optional irreversible permanent lock (only if explicitly confirmed)
+      if (lockPermanently) {
+        try {
+          if (NfcManager.ndefHandler.makeReadOnly) {
+            await NfcManager.ndefHandler.makeReadOnly();
+          }
+        } catch (lockErr: any) {
+          console.warn("[NfcService] Permanent lock warning:", lockErr.message);
+        }
+      }
+
       try {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } catch {
-        // fallback
-      }
+      } catch {}
 
       return {
         success: true,
         tagUid,
         tagTech,
         readBackUrl: readBackUri,
-        readBackVerified: true
+        readBackVerified: true,
+        lockedPermanently: lockPermanently
       };
     } catch (err: any) {
       console.warn("[NfcService] Write/Verify error:", err.message);
       try {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      } catch {
-        // fallback
-      }
+      } catch {}
 
       let userFriendlyError = err.message || "Failed to write NFC tag.";
       if (userFriendlyError.includes("cancelled") || userFriendlyError.includes("canceled")) {

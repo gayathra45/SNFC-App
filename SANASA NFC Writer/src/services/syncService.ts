@@ -27,6 +27,82 @@ export interface SyncResult {
   order?: any;
 }
 
+export interface BackendVerificationResult {
+  success: boolean;
+  verified: boolean;
+  tokenStatus: "Active" | "Revoked" | "Expired" | "Invalid" | "Unauthorized" | "Unavailable";
+  assignmentStatus: "Valid" | "Invalid" | "Unavailable";
+  accessRouteStatus: "Available" | "Failed" | "Unavailable";
+  vehiclePlate?: string;
+  driverName?: string;
+  policyHolderName?: string;
+  verifiedAt?: string;
+  auditLogged?: boolean;
+  message: string;
+}
+
+export async function verifyBackendAccess(params: {
+  cardId: string;
+  cardUrl: string;
+  staffId?: string;
+  staffName?: string;
+  branch?: string;
+}): Promise<BackendVerificationResult> {
+  const { cardId, cardUrl, staffId, staffName, branch } = params;
+
+  try {
+    const baseUrl = await getServerUrl();
+    const res = await fetch(`${baseUrl}/api/nfc-card/writer/verify-access`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cardId,
+        cardUrl,
+        staffId,
+        staffName,
+        branch
+      })
+    });
+
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      return {
+        success: true,
+        verified: !!data.verified,
+        tokenStatus: data.tokenStatus || "Active",
+        assignmentStatus: data.assignmentStatus || "Valid",
+        accessRouteStatus: data.accessRouteStatus || "Available",
+        vehiclePlate: data.vehiclePlate,
+        driverName: data.driverName,
+        policyHolderName: data.policyHolderName,
+        verifiedAt: data.verifiedAt,
+        auditLogged: data.auditLogged,
+        message: data.message || "Backend verified successfully."
+      };
+    } else {
+      return {
+        success: false,
+        verified: false,
+        tokenStatus: data.tokenStatus || (res.status === 403 ? "Unauthorized" : "Invalid"),
+        assignmentStatus: data.assignmentStatus || "Invalid",
+        accessRouteStatus: data.accessRouteStatus || "Failed",
+        message: data.message || data.error || `Verification failed with HTTP ${res.status}`
+      };
+    }
+  } catch (err: any) {
+    console.warn("[SyncService] Backend verification network error:", err.message);
+    return {
+      success: false,
+      verified: false,
+      tokenStatus: "Unavailable",
+      assignmentStatus: "Unavailable",
+      accessRouteStatus: "Unavailable",
+      message: `Backend unreachable: ${err.message}. Showing 'Written - Backend Verification Pending'.`
+    };
+  }
+}
+
 export async function completeCardWriteAndSync(params: SyncCompleteParams): Promise<SyncResult> {
   const { jobId, cardId, orderId, readBackUrl, tagUid, tagTech, staffId, staffName, branch } = params;
 

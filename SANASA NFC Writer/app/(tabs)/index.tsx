@@ -115,10 +115,10 @@ export default function DashboardScreen() {
     }
   };
 
-  const verifiedTodayCount = history.filter((h) => {
-    const today = new Date().toDateString();
-    return h.status === "Success" && new Date(h.timestamp).toDateString() === today;
-  }).length;
+  const completedCount = history.filter((h) => h.status === "Success").length;
+  const failedCount = history.filter((h) => h.status === "Failed").length;
+  const pendingSyncCount = pendingSyncs.length;
+  const pendingQueueCount = activeTransfer ? 1 : 0;
 
   return (
     <ScrollView
@@ -137,11 +137,26 @@ export default function DashboardScreen() {
           <Text style={styles.staffEmail}>{staff?.email || "Branch Office Portal"}</Text>
         </View>
 
-        <View style={[styles.statusPill, socketConnected ? styles.statusPillLive : styles.statusPillOffline]}>
-          <View style={[styles.statusDot, socketConnected ? styles.dotGreen : styles.dotAmber]} />
-          <Text style={[styles.statusText, socketConnected ? styles.statusTextLive : styles.statusTextOffline]}>
-            {socketConnected ? "Live Gateway" : "Reconnecting"}
-          </Text>
+        <View style={styles.profileRight}>
+          <View style={[styles.statusPill, socketConnected ? styles.statusPillLive : styles.statusPillOffline]}>
+            <View style={[styles.statusDot, socketConnected ? styles.dotGreen : styles.dotAmber]} />
+            <Text style={[styles.statusText, socketConnected ? styles.statusTextLive : styles.statusTextOffline]}>
+              {socketConnected ? "Live Gateway" : "Reconnecting"}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.pairingMiniBadge}
+            onPress={() => router.push("/(tabs)/pairing")}
+          >
+            <MaterialCommunityIcons
+              name={pairing ? "cellphone-check" : "cellphone-link"}
+              size={12}
+              color={pairing ? "#059669" : "#D97706"}
+            />
+            <Text style={[styles.pairingMiniText, { color: pairing ? "#059669" : "#D97706" }]}>
+              {pairing ? "Device Paired" : "Unpaired"}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -173,41 +188,39 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {/* Metrics Row */}
+      {/* Metrics Grid: 4 Core Counters */}
       <View style={styles.metricsGrid}>
         <View style={styles.metricCard}>
           <View style={[styles.metricIconWrap, { backgroundColor: "#ECFDF5" }]}>
-            <MaterialCommunityIcons name="check-decagram" size={20} color="#059669" />
+            <MaterialCommunityIcons name="check-decagram" size={18} color="#059669" />
           </View>
-          <Text style={styles.metricVal}>{verifiedTodayCount}</Text>
-          <Text style={styles.metricLbl}>Verified Today</Text>
+          <Text style={styles.metricVal}>{completedCount}</Text>
+          <Text style={styles.metricLbl}>Completed</Text>
         </View>
 
         <View style={styles.metricCard}>
           <View style={[styles.metricIconWrap, { backgroundColor: "#EFF6FF" }]}>
-            <MaterialCommunityIcons name="tray-full" size={20} color="#2563EB" />
+            <MaterialCommunityIcons name="tray-full" size={18} color="#2563EB" />
           </View>
-          <Text style={styles.metricVal}>{activeTransfer ? 1 : 0}</Text>
+          <Text style={styles.metricVal}>{pendingQueueCount}</Text>
           <Text style={styles.metricLbl}>Pending Queue</Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.metricCard}
-          onPress={() => router.push("/(tabs)/pairing")}
-          activeOpacity={0.7}
-        >
-          <View style={[styles.metricIconWrap, { backgroundColor: pairing ? "#ECFDF5" : "#FFFBEB" }]}>
-            <MaterialCommunityIcons
-              name={pairing ? "cellphone-check" : "cellphone-link"}
-              size={20}
-              color={pairing ? "#059669" : "#D97706"}
-            />
+        <View style={styles.metricCard}>
+          <View style={[styles.metricIconWrap, { backgroundColor: "#FFFBEB" }]}>
+            <MaterialCommunityIcons name="cloud-sync-outline" size={18} color="#D97706" />
           </View>
-          <Text style={[styles.metricVal, { fontSize: 13, marginTop: 4, color: pairing ? "#059669" : "#D97706" }]}>
-            {pairing ? "Paired" : "Unpaired"}
-          </Text>
-          <Text style={styles.metricLbl}>Portal Pairing</Text>
-        </TouchableOpacity>
+          <Text style={styles.metricVal}>{pendingSyncCount}</Text>
+          <Text style={styles.metricLbl}>Verify Pending</Text>
+        </View>
+
+        <View style={styles.metricCard}>
+          <View style={[styles.metricIconWrap, { backgroundColor: "#FEF2F2" }]}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={18} color="#DC2626" />
+          </View>
+          <Text style={styles.metricVal}>{failedCount}</Text>
+          <Text style={styles.metricLbl}>Failed Cards</Text>
+        </View>
       </View>
 
       {/* Incoming Wireless Card Transfer Card */}
@@ -403,6 +416,25 @@ const styles = StyleSheet.create({
   },
   profileLeft: {
     flex: 1
+  },
+  profileRight: {
+    alignItems: "flex-end",
+    gap: 6
+  },
+  pairingMiniBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0"
+  },
+  pairingMiniText: {
+    fontSize: 10,
+    fontWeight: "700"
   },
   branchTag: {
     flexDirection: "row",

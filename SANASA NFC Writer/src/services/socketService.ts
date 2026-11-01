@@ -9,6 +9,7 @@ export interface TransferJobPayload {
   cardId: string;
   cardUrl: string;
   policyHolderName: string;
+  vehiclePlate?: string;
   branch: string;
   staffId: string;
   staffName: string;
