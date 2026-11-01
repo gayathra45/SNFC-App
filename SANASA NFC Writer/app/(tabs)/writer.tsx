@@ -63,7 +63,7 @@ export default function NfcWriterScreen() {
 
   // Pulse animation for radar ring
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const pulseOpacity = useRef(new Animated.Value(0.6)).current;
+  const pulseOpacity = useRef(new Animated.Value(0.5)).current;
 
   useEffect(() => {
     let anim: Animated.CompositeAnimation | null = null;
@@ -71,7 +71,7 @@ export default function NfcWriterScreen() {
       anim = Animated.loop(
         Animated.parallel([
           Animated.timing(pulseAnim, {
-            toValue: 1.45,
+            toValue: 1.4,
             duration: 1400,
             easing: Easing.out(Easing.ease),
             useNativeDriver: true
@@ -87,7 +87,7 @@ export default function NfcWriterScreen() {
       anim.start();
     } else {
       pulseAnim.setValue(1);
-      pulseOpacity.setValue(0.6);
+      pulseOpacity.setValue(0.5);
     }
     return () => {
       if (anim) anim.stop();
@@ -275,7 +275,7 @@ export default function NfcWriterScreen() {
       <View style={styles.stepperContainer}>
         <View style={styles.stepItem}>
           <View style={[styles.stepDot, cardId ? styles.stepDotActive : null]}>
-            <Text style={styles.stepDotNum}>1</Text>
+            <Text style={[styles.stepDotNum, cardId ? styles.stepDotNumActive : null]}>1</Text>
           </View>
           <Text style={[styles.stepLabel, cardId ? styles.stepLabelActive : null]}>Card Ready</Text>
         </View>
@@ -283,7 +283,7 @@ export default function NfcWriterScreen() {
 
         <View style={styles.stepItem}>
           <View style={[styles.stepDot, (step === "WAITING_FOR_TAG" || step === "WRITING_TAG" || step === "VERIFYING_READBACK" || step === "SUCCESS") && styles.stepDotActive]}>
-            <Text style={styles.stepDotNum}>2</Text>
+            <Text style={[styles.stepDotNum, (step === "WAITING_FOR_TAG" || step === "WRITING_TAG" || step === "VERIFYING_READBACK" || step === "SUCCESS") && styles.stepDotNumActive]}>2</Text>
           </View>
           <Text style={[styles.stepLabel, (step === "WAITING_FOR_TAG" || step === "WRITING_TAG" || step === "VERIFYING_READBACK" || step === "SUCCESS") && styles.stepLabelActive]}>Scan Tag</Text>
         </View>
@@ -291,7 +291,7 @@ export default function NfcWriterScreen() {
 
         <View style={styles.stepItem}>
           <View style={[styles.stepDot, (step === "WRITING_TAG" || step === "VERIFYING_READBACK" || step === "SUCCESS") && styles.stepDotActive]}>
-            <Text style={styles.stepDotNum}>3</Text>
+            <Text style={[styles.stepDotNum, (step === "WRITING_TAG" || step === "VERIFYING_READBACK" || step === "SUCCESS") && styles.stepDotNumActive]}>3</Text>
           </View>
           <Text style={[styles.stepLabel, (step === "WRITING_TAG" || step === "VERIFYING_READBACK" || step === "SUCCESS") && styles.stepLabelActive]}>Write NDEF</Text>
         </View>
@@ -299,7 +299,7 @@ export default function NfcWriterScreen() {
 
         <View style={styles.stepItem}>
           <View style={[styles.stepDot, step === "SUCCESS" && styles.stepDotSuccess]}>
-            <MaterialCommunityIcons name={step === "SUCCESS" ? "check" : "numeric-4"} size={12} color="#FFFFFF" />
+            <MaterialCommunityIcons name={step === "SUCCESS" ? "check" : "numeric-4"} size={13} color={step === "SUCCESS" ? "#FFFFFF" : "#64748B"} />
           </View>
           <Text style={[styles.stepLabel, step === "SUCCESS" && styles.stepLabelSuccess]}>Verified</Text>
         </View>
@@ -308,17 +308,17 @@ export default function NfcWriterScreen() {
       {/* NFC Hardware Status Banner */}
       {nfcStatus.isExpoGo ? (
         <View style={styles.hardwareBannerInfo}>
-          <MaterialCommunityIcons name="cellphone-nfc" size={22} color="#38BDF8" />
+          <MaterialCommunityIcons name="cellphone-nfc" size={22} color="#0284C7" />
           <View style={styles.hardwareBannerTextWrap}>
             <Text style={styles.bannerTitleInfo}>Expo Go • Simulation Mode Active</Text>
             <Text style={styles.bannerDescInfo}>
-              Your phone has NFC, but Expo Go cannot load native drivers. Simulation Mode is enabled so you can test end-to-end writing & backend sync!
+              Expo Go cannot load native NFC drivers. Simulation Mode is enabled so you can test end-to-end writing & backend sync!
             </Text>
           </View>
         </View>
       ) : !nfcStatus.supported ? (
         <View style={styles.hardwareBannerError}>
-          <MaterialCommunityIcons name="nfc-search-variant" size={22} color="#EF4444" />
+          <MaterialCommunityIcons name="nfc-search-variant" size={22} color="#DC2626" />
           <View style={styles.hardwareBannerTextWrap}>
             <Text style={styles.bannerTitleError}>NFC Hardware Unavailable</Text>
             <Text style={styles.bannerDescError}>
@@ -328,7 +328,7 @@ export default function NfcWriterScreen() {
         </View>
       ) : !nfcStatus.enabled ? (
         <View style={styles.hardwareBannerWarn}>
-          <MaterialCommunityIcons name="nfc-search-variant" size={22} color="#F59E0B" />
+          <MaterialCommunityIcons name="nfc-search-variant" size={22} color="#D97706" />
           <View style={styles.hardwareBannerTextWrap}>
             <Text style={styles.bannerTitleWarn}>NFC is Turned OFF</Text>
             <Text style={styles.bannerDescWarn}>Enable NFC in system settings to write physical cards.</Text>
@@ -342,7 +342,7 @@ export default function NfcWriterScreen() {
         </View>
       ) : (
         <View style={styles.hardwareBannerReady}>
-          <MaterialCommunityIcons name="check-decagram" size={18} color="#10B981" />
+          <MaterialCommunityIcons name="check-circle" size={18} color="#059669" />
           <Text style={styles.bannerTextReady}>NFC Antenna Active • ISO 14443-A NDEF Mode</Text>
         </View>
       )}
@@ -373,8 +373,8 @@ export default function NfcWriterScreen() {
                     : step === "ERROR"
                     ? ["#DC2626", "#EF4444"]
                     : step === "WAITING_FOR_TAG" || step === "WRITING_TAG"
-                    ? ["#2563EB", "#06B6D4"]
-                    : ["#1E293B", "#0F172A"]
+                    ? ["#2563EB", "#0284C7"]
+                    : ["#EFF6FF", "#DBEAFE"]
                 }
                 style={styles.radarRingInner}
               >
@@ -387,7 +387,11 @@ export default function NfcWriterScreen() {
                       : "credit-card-wireless"
                   }
                   size={36}
-                  color="#FFFFFF"
+                  color={
+                    step === "SUCCESS" || step === "ERROR" || step === "WAITING_FOR_TAG" || step === "WRITING_TAG"
+                      ? "#FFFFFF"
+                      : "#2563EB"
+                  }
                 />
               </LinearGradient>
             </View>
@@ -445,7 +449,7 @@ export default function NfcWriterScreen() {
           </View>
         ) : (
           <View style={styles.noCardBox}>
-            <MaterialCommunityIcons name="tray-alert" size={26} color="#64748B" />
+            <MaterialCommunityIcons name="tray-alert" size={26} color="#94A3B8" />
             <Text style={styles.noCardText}>No card currently selected for writing.</Text>
             <Text style={styles.noCardSubtext}>
               Click "Transfer to NFC Writer" on any card in the website portal, or select from the Dashboard.
@@ -468,8 +472,8 @@ export default function NfcWriterScreen() {
               <LinearGradient
                 colors={
                   !cardId || (!nfcStatus.enabled && !nfcStatus.isExpoGo)
-                    ? ["#334155", "#1E293B"]
-                    : ["#2563EB", "#06B6D4"]
+                    ? ["#CBD5E1", "#94A3B8"]
+                    : ["#2563EB", "#1D4ED8"]
                 }
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
@@ -487,7 +491,7 @@ export default function NfcWriterScreen() {
             </TouchableOpacity>
           ) : step === "WAITING_FOR_TAG" || step === "WRITING_TAG" || step === "VERIFYING_READBACK" ? (
             <View style={styles.inProgressContainer}>
-              <ActivityIndicator size="large" color="#38BDF8" style={{ marginBottom: 12 }} />
+              <ActivityIndicator size="large" color="#2563EB" style={{ marginBottom: 12 }} />
               <Text style={styles.inProgressText}>
                 {step === "WAITING_FOR_TAG"
                   ? "Looking for NFC Tag..."
@@ -502,7 +506,7 @@ export default function NfcWriterScreen() {
           ) : step === "SUCCESS" || step === "SYNC_PENDING" ? (
             <View style={styles.resultBox}>
               <View style={styles.resultBadgeSuccess}>
-                <MaterialCommunityIcons name="check-circle" size={20} color="#10B981" />
+                <MaterialCommunityIcons name="check-circle" size={20} color="#059669" />
                 <Text style={styles.resultBadgeText}>NDEF Payload Verified</Text>
               </View>
 
@@ -518,7 +522,7 @@ export default function NfcWriterScreen() {
                   </View>
                   <View style={styles.tagMetaRow}>
                     <Text style={styles.tagMetaLabel}>Read-Back Verified:</Text>
-                    <Text style={[styles.tagMetaVal, { color: "#10B981" }]}>100% Exact Match</Text>
+                    <Text style={[styles.tagMetaVal, { color: "#059669" }]}>100% Exact Match</Text>
                   </View>
                 </View>
               ) : null}
@@ -527,7 +531,7 @@ export default function NfcWriterScreen() {
 
               <TouchableOpacity style={styles.nextBtn} onPress={handleResetForNext}>
                 <LinearGradient
-                  colors={["#059669", "#10B981"]}
+                  colors={["#059669", "#047857"]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.gradientBtnContent}
@@ -539,7 +543,7 @@ export default function NfcWriterScreen() {
             </View>
           ) : step === "ERROR" ? (
             <View style={styles.errorBox}>
-              <MaterialCommunityIcons name="alert-circle-outline" size={32} color="#EF4444" />
+              <MaterialCommunityIcons name="alert-circle-outline" size={32} color="#DC2626" />
               <Text style={styles.errorTitle}>NFC Operation Failed</Text>
               <Text style={styles.errorDesc}>{errorMessage}</Text>
 
@@ -559,7 +563,7 @@ export default function NfcWriterScreen() {
       {/* Auxiliary Engineering Tools */}
       <View style={styles.toolCard}>
         <View style={styles.toolHeader}>
-          <MaterialCommunityIcons name="tools" size={18} color="#38BDF8" />
+          <MaterialCommunityIcons name="tools" size={18} color="#2563EB" />
           <Text style={styles.toolTitle}>NFC Antenna Diagnostic Tool</Text>
         </View>
         <Text style={styles.toolDesc}>
@@ -572,10 +576,10 @@ export default function NfcWriterScreen() {
           activeOpacity={0.8}
         >
           {diagReading ? (
-            <ActivityIndicator size="small" color="#38BDF8" />
+            <ActivityIndicator size="small" color="#2563EB" />
           ) : (
             <>
-              <MaterialCommunityIcons name="credit-card-scan-outline" size={18} color="#38BDF8" />
+              <MaterialCommunityIcons name="credit-card-scan-outline" size={18} color="#2563EB" />
               <Text style={styles.toolBtnText}>Run Tag Diagnostic Scan</Text>
             </>
           )}
@@ -588,7 +592,7 @@ export default function NfcWriterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#070D1E"
+    backgroundColor: "#F8FAFC"
   },
   content: {
     padding: 16,
@@ -599,13 +603,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#0E172E",
+    backgroundColor: "#FFFFFF",
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.06)"
+    borderColor: "#EEF2F6",
+    shadowColor: "#64748B",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2
   },
   stepItem: {
     alignItems: "center",
@@ -615,56 +624,59 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: "#1E293B",
+    backgroundColor: "#F1F5F9",
     borderWidth: 1,
-    borderColor: "#475569",
+    borderColor: "#CBD5E1",
     alignItems: "center",
     justifyContent: "center"
   },
   stepDotActive: {
     backgroundColor: "#2563EB",
-    borderColor: "#38BDF8"
+    borderColor: "#2563EB"
   },
   stepDotSuccess: {
     backgroundColor: "#059669",
-    borderColor: "#10B981"
+    borderColor: "#059669"
   },
   stepDotNum: {
-    color: "#FFFFFF",
+    color: "#64748B",
     fontSize: 11,
     fontWeight: "800"
+  },
+  stepDotNumActive: {
+    color: "#FFFFFF"
   },
   stepLabel: {
     fontSize: 10,
     fontWeight: "600",
-    color: "#64748B"
+    color: "#94A3B8"
   },
   stepLabelActive: {
-    color: "#38BDF8",
+    color: "#2563EB",
     fontWeight: "700"
   },
   stepLabelSuccess: {
-    color: "#10B981",
+    color: "#059669",
     fontWeight: "700"
   },
   stepLine: {
     flex: 1,
     height: 2,
-    backgroundColor: "#1E293B",
+    backgroundColor: "#E2E8F0",
     marginHorizontal: 4,
     marginBottom: 16
   },
   stepLineActive: {
-    backgroundColor: "#38BDF8"
+    backgroundColor: "#2563EB"
   },
 
   // Banners
   hardwareBannerReady: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    backgroundColor: "#ECFDF5",
     borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.3)",
+    borderColor: "#A7F3D0",
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -672,16 +684,16 @@ const styles = StyleSheet.create({
     marginBottom: 16
   },
   bannerTextReady: {
-    color: "#10B981",
+    color: "#059669",
     fontSize: 12,
     fontWeight: "700"
   },
   hardwareBannerInfo: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(56, 189, 248, 0.1)",
+    backgroundColor: "#F0F9FF",
     borderWidth: 1,
-    borderColor: "rgba(56, 189, 248, 0.3)",
+    borderColor: "#BAE6FD",
     borderRadius: 12,
     padding: 12,
     gap: 10,
@@ -690,19 +702,19 @@ const styles = StyleSheet.create({
   bannerTitleInfo: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#38BDF8"
+    color: "#0369A1"
   },
   bannerDescInfo: {
     fontSize: 10.5,
-    color: "#94A3B8",
+    color: "#0284C7",
     marginTop: 2
   },
   hardwareBannerWarn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(245, 158, 11, 0.12)",
+    backgroundColor: "#FFFBEB",
     borderWidth: 1,
-    borderColor: "rgba(245, 158, 11, 0.3)",
+    borderColor: "#FDE68A",
     borderRadius: 12,
     padding: 12,
     gap: 10,
@@ -711,11 +723,11 @@ const styles = StyleSheet.create({
   bannerTitleWarn: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#F59E0B"
+    color: "#92400E"
   },
   bannerDescWarn: {
     fontSize: 10.5,
-    color: "#FCD34D",
+    color: "#B45309",
     marginTop: 2
   },
   openSettingsBtn: {
@@ -732,9 +744,9 @@ const styles = StyleSheet.create({
   hardwareBannerError: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(239, 68, 68, 0.12)",
+    backgroundColor: "#FEF2F2",
     borderWidth: 1,
-    borderColor: "rgba(239, 68, 68, 0.3)",
+    borderColor: "#FECACA",
     borderRadius: 12,
     padding: 12,
     gap: 10,
@@ -746,32 +758,32 @@ const styles = StyleSheet.create({
   bannerTitleError: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#EF4444"
+    color: "#991B1B"
   },
   bannerDescError: {
     fontSize: 10.5,
-    color: "#FCA5A5",
+    color: "#B91C1C",
     marginTop: 2
   },
 
   // Main Card
   card: {
-    backgroundColor: "#0E172E",
+    backgroundColor: "#FFFFFF",
     borderRadius: 20,
     padding: 20,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 4
+    borderColor: "#EEF2F6",
+    shadowColor: "#64748B",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3
   },
   antennaGuideBox: {
     alignItems: "center",
     paddingVertical: 18,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.06)"
+    borderBottomColor: "#F1F5F9"
   },
   radarWrapper: {
     width: 100,
@@ -786,52 +798,50 @@ const styles = StyleSheet.create({
     height: 90,
     borderRadius: 45,
     borderWidth: 2,
-    borderColor: "#38BDF8",
-    backgroundColor: "rgba(56, 189, 248, 0.15)"
+    borderColor: "#2563EB",
+    backgroundColor: "rgba(37, 99, 235, 0.12)"
   },
   radarRingOuter: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#162244",
+    backgroundColor: "#EFF6FF",
     alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(56, 189, 248, 0.3)"
+    justifyContent: "center"
   },
   radarRingInner: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#06B6D4",
+    shadowColor: "#2563EB",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.2,
     shadowRadius: 6,
-    elevation: 4
+    elevation: 3
   },
   antennaInstruction: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#F8FAFC",
+    color: "#0F2942",
     textAlign: "center"
   },
   antennaSubInstruction: {
     fontSize: 11,
-    color: "#94A3B8",
+    color: "#64748B",
     marginTop: 4,
     textAlign: "center"
   },
 
   // Selected Card Box
   cardInfoBox: {
-    backgroundColor: "#162244",
+    backgroundColor: "#F8FAFC",
     borderRadius: 14,
     padding: 14,
     marginVertical: 16,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.06)",
+    borderColor: "#EEF2F6",
     gap: 8
   },
   cardInfoRow: {
@@ -841,21 +851,21 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 11,
-    color: "#94A3B8"
+    color: "#64748B"
   },
   infoCardId: {
     fontSize: 13,
     fontWeight: "800",
-    color: "#38BDF8",
-    letterSpacing: 0.5
+    color: "#0F2942",
+    letterSpacing: 0.3
   },
   infoVal: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#E2E8F0"
+    color: "#334155"
   },
   branchPill: {
-    backgroundColor: "rgba(56, 189, 248, 0.15)",
+    backgroundColor: "#EFF6FF",
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6
@@ -863,11 +873,11 @@ const styles = StyleSheet.create({
   branchPillText: {
     fontSize: 10,
     fontWeight: "700",
-    color: "#38BDF8"
+    color: "#2563EB"
   },
   infoMono: {
     fontSize: 10,
-    color: "#64748B",
+    color: "#475569",
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
     maxWidth: 200
   },
@@ -879,11 +889,11 @@ const styles = StyleSheet.create({
   noCardText: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#E2E8F0"
+    color: "#475569"
   },
   noCardSubtext: {
     fontSize: 11,
-    color: "#64748B",
+    color: "#94A3B8",
     textAlign: "center",
     paddingHorizontal: 20
   },
@@ -920,20 +930,18 @@ const styles = StyleSheet.create({
   inProgressText: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#38BDF8",
+    color: "#2563EB",
     marginBottom: 14
   },
   cancelBtn: {
     paddingHorizontal: 20,
     paddingVertical: 8,
-    backgroundColor: "#1E293B",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)"
+    backgroundColor: "#F1F5F9",
+    borderRadius: 8
   },
   cancelBtnText: {
     fontSize: 12,
-    color: "#94A3B8",
+    color: "#64748B",
     fontWeight: "700"
   },
 
@@ -947,26 +955,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(16, 185, 129, 0.15)",
+    backgroundColor: "#ECFDF5",
     borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.4)",
+    borderColor: "#A7F3D0",
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 20
   },
   resultBadgeText: {
-    color: "#10B981",
+    color: "#059669",
     fontSize: 13,
     fontWeight: "800"
   },
   tagMetaGrid: {
     width: "100%",
-    backgroundColor: "#162244",
+    backgroundColor: "#F8FAFC",
     borderRadius: 12,
     padding: 12,
     gap: 6,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.06)"
+    borderColor: "#EEF2F6"
   },
   tagMetaRow: {
     flexDirection: "row",
@@ -975,22 +983,22 @@ const styles = StyleSheet.create({
   },
   tagMetaLabel: {
     fontSize: 11,
-    color: "#94A3B8"
+    color: "#64748B"
   },
   tagMetaVal: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#E2E8F0"
+    color: "#334155"
   },
   tagMetaValMono: {
     fontSize: 11,
     fontWeight: "800",
-    color: "#38BDF8",
+    color: "#2563EB",
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace"
   },
   syncStatusDesc: {
     fontSize: 11,
-    color: "#94A3B8",
+    color: "#64748B",
     textAlign: "center"
   },
   nextBtn: {
@@ -1014,11 +1022,11 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 15,
     fontWeight: "800",
-    color: "#EF4444"
+    color: "#DC2626"
   },
   errorDesc: {
     fontSize: 11,
-    color: "#94A3B8",
+    color: "#64748B",
     textAlign: "center",
     paddingHorizontal: 16
   },
@@ -1028,7 +1036,7 @@ const styles = StyleSheet.create({
     marginTop: 8
   },
   retryBtn: {
-    backgroundColor: "#EF4444",
+    backgroundColor: "#DC2626",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8
@@ -1039,25 +1047,30 @@ const styles = StyleSheet.create({
     fontWeight: "700"
   },
   dismissBtn: {
-    backgroundColor: "#1E293B",
+    backgroundColor: "#F1F5F9",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8
   },
   dismissBtnText: {
-    color: "#94A3B8",
+    color: "#64748B",
     fontSize: 12,
     fontWeight: "700"
   },
 
   // Auxiliary Diagnostic Tool Card
   toolCard: {
-    backgroundColor: "#0E172E",
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 16,
     marginTop: 16,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.06)"
+    borderColor: "#EEF2F6",
+    shadowColor: "#64748B",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2
   },
   toolHeader: {
     flexDirection: "row",
@@ -1068,11 +1081,11 @@ const styles = StyleSheet.create({
   toolTitle: {
     fontSize: 13,
     fontWeight: "800",
-    color: "#F8FAFC"
+    color: "#0F2942"
   },
   toolDesc: {
     fontSize: 11,
-    color: "#94A3B8",
+    color: "#64748B",
     marginBottom: 12,
     lineHeight: 16
   },
@@ -1081,14 +1094,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "rgba(56, 189, 248, 0.1)",
+    backgroundColor: "#EFF6FF",
     borderWidth: 1,
-    borderColor: "rgba(56, 189, 248, 0.3)",
+    borderColor: "#BFDBFE",
     paddingVertical: 10,
     borderRadius: 10
   },
   toolBtnText: {
-    color: "#38BDF8",
+    color: "#2563EB",
     fontSize: 12,
     fontWeight: "700"
   }

@@ -13,7 +13,6 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import {
   getStoredStaff,
@@ -29,7 +28,6 @@ import {
 import { logoutStaff } from "../src/services/authService";
 import { getServerUrl, setCustomServerUrl, resetServerUrl } from "../src/config/api";
 import { socketService } from "../src/services/socketService";
-import { nfcService } from "../src/services/nfcService";
 import { flushPendingSyncs } from "../src/services/syncService";
 
 export default function SettingsScreen() {
@@ -180,14 +178,9 @@ export default function SettingsScreen() {
       {/* Staff Account Header Card */}
       <View style={styles.card}>
         <View style={styles.accountHeaderRow}>
-          <LinearGradient
-            colors={["#2563EB", "#06B6D4"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.avatarWrap}
-          >
-            <MaterialCommunityIcons name="account" size={26} color="#FFFFFF" />
-          </LinearGradient>
+          <View style={styles.avatarWrap}>
+            <MaterialCommunityIcons name="account" size={26} color="#2563EB" />
+          </View>
           <View style={styles.accountMeta}>
             <Text style={styles.accountName}>{staff?.name || "Staff Member"}</Text>
             <Text style={styles.accountEmail}>{staff?.email || "staff@sanasa.lk"}</Text>
@@ -198,7 +191,7 @@ export default function SettingsScreen() {
         </View>
 
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
-          <MaterialCommunityIcons name="logout" size={16} color="#EF4444" />
+          <MaterialCommunityIcons name="logout" size={16} color="#DC2626" />
           <Text style={styles.logoutBtnText}>Sign Out of Device</Text>
         </TouchableOpacity>
       </View>
@@ -206,7 +199,7 @@ export default function SettingsScreen() {
       {/* NFC Tag Safety & Engineering Settings */}
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <MaterialCommunityIcons name="shield-lock-outline" size={20} color="#38BDF8" />
+          <MaterialCommunityIcons name="shield-lock-outline" size={20} color="#2563EB" />
           <Text style={styles.cardTitle}>NFC Tag Safety & Engineering</Text>
         </View>
         <Text style={styles.sectionDesc}>
@@ -223,8 +216,8 @@ export default function SettingsScreen() {
           <Switch
             value={settings.strictReadBackVerify}
             onValueChange={(val) => handleUpdateSetting("strictReadBackVerify", val)}
-            thumbColor={settings.strictReadBackVerify ? "#38BDF8" : "#64748B"}
-            trackColor={{ false: "#1E293B", true: "rgba(56, 189, 248, 0.4)" }}
+            thumbColor="#FFFFFF"
+            trackColor={{ false: "#CBD5E1", true: "#2563EB" }}
           />
         </View>
 
@@ -240,8 +233,8 @@ export default function SettingsScreen() {
           <Switch
             value={settings.overwriteProtection}
             onValueChange={(val) => handleUpdateSetting("overwriteProtection", val)}
-            thumbColor={settings.overwriteProtection ? "#38BDF8" : "#64748B"}
-            trackColor={{ false: "#1E293B", true: "rgba(56, 189, 248, 0.4)" }}
+            thumbColor="#FFFFFF"
+            trackColor={{ false: "#CBD5E1", true: "#2563EB" }}
           />
         </View>
 
@@ -249,7 +242,7 @@ export default function SettingsScreen() {
 
         <View style={styles.settingRow}>
           <View style={styles.settingTextWrap}>
-            <Text style={[styles.settingTitle, settings.lockTagAfterWrite && { color: "#EF4444" }]}>
+            <Text style={[styles.settingTitle, settings.lockTagAfterWrite && { color: "#DC2626" }]}>
               Permanent Tag Lock (Make Read-Only)
             </Text>
             <Text style={styles.settingSubtitle}>
@@ -259,8 +252,8 @@ export default function SettingsScreen() {
           <Switch
             value={settings.lockTagAfterWrite}
             onValueChange={(val) => handleUpdateSetting("lockTagAfterWrite", val)}
-            thumbColor={settings.lockTagAfterWrite ? "#EF4444" : "#64748B"}
-            trackColor={{ false: "#1E293B", true: "rgba(239, 68, 68, 0.4)" }}
+            thumbColor="#FFFFFF"
+            trackColor={{ false: "#CBD5E1", true: "#DC2626" }}
           />
         </View>
       </View>
@@ -268,7 +261,7 @@ export default function SettingsScreen() {
       {/* Audio & Haptic Feedback */}
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <MaterialCommunityIcons name="vibrate" size={20} color="#38BDF8" />
+          <MaterialCommunityIcons name="vibrate" size={20} color="#2563EB" />
           <Text style={styles.cardTitle}>Audio & Haptics</Text>
         </View>
 
@@ -282,8 +275,8 @@ export default function SettingsScreen() {
           <Switch
             value={settings.hapticFeedback}
             onValueChange={(val) => handleUpdateSetting("hapticFeedback", val)}
-            thumbColor={settings.hapticFeedback ? "#38BDF8" : "#64748B"}
-            trackColor={{ false: "#1E293B", true: "rgba(56, 189, 248, 0.4)" }}
+            thumbColor="#FFFFFF"
+            trackColor={{ false: "#CBD5E1", true: "#2563EB" }}
           />
         </View>
 
@@ -299,8 +292,8 @@ export default function SettingsScreen() {
           <Switch
             value={settings.soundChimes}
             onValueChange={(val) => handleUpdateSetting("soundChimes", val)}
-            thumbColor={settings.soundChimes ? "#38BDF8" : "#64748B"}
-            trackColor={{ false: "#1E293B", true: "rgba(56, 189, 248, 0.4)" }}
+            thumbColor="#FFFFFF"
+            trackColor={{ false: "#CBD5E1", true: "#2563EB" }}
           />
         </View>
       </View>
@@ -308,7 +301,7 @@ export default function SettingsScreen() {
       {/* Desktop Terminal Pairing */}
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <MaterialCommunityIcons name="cellphone-link" size={20} color="#38BDF8" />
+          <MaterialCommunityIcons name="cellphone-link" size={20} color="#2563EB" />
           <Text style={styles.cardTitle}>Paired Desktop Terminal</Text>
         </View>
 
@@ -329,7 +322,7 @@ export default function SettingsScreen() {
           </View>
         ) : (
           <View style={styles.unpairedBox}>
-            <MaterialCommunityIcons name="link-off" size={24} color="#64748B" />
+            <MaterialCommunityIcons name="link-off" size={24} color="#94A3B8" />
             <Text style={styles.unpairedText}>No desktop terminal currently linked.</Text>
             <TouchableOpacity
               style={styles.pairNowBtn}
@@ -344,7 +337,7 @@ export default function SettingsScreen() {
       {/* Backend API Configuration */}
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <MaterialCommunityIcons name="server-network" size={20} color="#38BDF8" />
+          <MaterialCommunityIcons name="server-network" size={20} color="#2563EB" />
           <Text style={styles.cardTitle}>Backend Server Configuration</Text>
         </View>
         <Text style={styles.sectionDesc}>
@@ -360,7 +353,7 @@ export default function SettingsScreen() {
             autoCapitalize="none"
             autoCorrect={false}
             placeholder="http://192.168.x.x:5000"
-            placeholderTextColor="#64748B"
+            placeholderTextColor="#94A3B8"
           />
         </View>
 
@@ -371,10 +364,10 @@ export default function SettingsScreen() {
             disabled={testing}
           >
             {testing ? (
-              <ActivityIndicator size="small" color="#38BDF8" />
+              <ActivityIndicator size="small" color="#2563EB" />
             ) : (
               <>
-                <MaterialCommunityIcons name="wifi-check" size={16} color="#38BDF8" />
+                <MaterialCommunityIcons name="wifi-check" size={16} color="#2563EB" />
                 <Text style={styles.testBtnText}>Test Ping</Text>
               </>
             )}
@@ -397,7 +390,7 @@ export default function SettingsScreen() {
       {/* Offline Storage Queue */}
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <MaterialCommunityIcons name="database-sync" size={20} color="#38BDF8" />
+          <MaterialCommunityIcons name="database-sync" size={20} color="#2563EB" />
           <Text style={styles.cardTitle}>Offline Sync & Local Queue</Text>
         </View>
         <Text style={styles.sectionDesc}>
@@ -432,19 +425,24 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#070D1E"
+    backgroundColor: "#F8FAFC"
   },
   content: {
     padding: 16,
     paddingBottom: 40
   },
   card: {
-    backgroundColor: "#0E172E",
+    backgroundColor: "#FFFFFF",
     borderRadius: 18,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)"
+    borderColor: "#EEF2F6",
+    shadowColor: "#64748B",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2
   },
   cardHeader: {
     flexDirection: "row",
@@ -455,17 +453,17 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 14,
     fontWeight: "800",
-    color: "#F8FAFC"
+    color: "#0F2942"
   },
   sectionDesc: {
     fontSize: 11,
-    color: "#94A3B8",
+    color: "#64748B",
     marginBottom: 12,
     lineHeight: 16
   },
   divider: {
     height: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    backgroundColor: "#F1F5F9",
     marginVertical: 12
   },
 
@@ -479,6 +477,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
+    backgroundColor: "#EFF6FF",
     alignItems: "center",
     justifyContent: "center"
   },
@@ -486,24 +485,24 @@ const styles = StyleSheet.create({
     flex: 1
   },
   accountName: {
-    fontSize: 14,
+    fontSize: 14.5,
     fontWeight: "800",
-    color: "#F8FAFC"
+    color: "#0F2942"
   },
   accountEmail: {
     fontSize: 11,
-    color: "#94A3B8",
+    color: "#64748B",
     marginTop: 2
   },
   branchBadge: {
-    backgroundColor: "rgba(56, 189, 248, 0.15)",
+    backgroundColor: "#EFF6FF",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8
   },
   branchBadgeText: {
-    color: "#38BDF8",
-    fontSize: 10,
+    color: "#2563EB",
+    fontSize: 10.5,
     fontWeight: "700"
   },
   logoutBtn: {
@@ -513,13 +512,13 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 14,
     paddingVertical: 10,
-    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    backgroundColor: "#FEF2F2",
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(239, 68, 68, 0.3)"
+    borderColor: "#FECACA"
   },
   logoutBtnText: {
-    color: "#EF4444",
+    color: "#DC2626",
     fontSize: 12,
     fontWeight: "700"
   },
@@ -535,23 +534,25 @@ const styles = StyleSheet.create({
     flex: 1
   },
   settingTitle: {
-    fontSize: 12.5,
+    fontSize: 13,
     fontWeight: "700",
-    color: "#E2E8F0"
+    color: "#1E293B"
   },
   settingSubtitle: {
-    fontSize: 10.5,
-    color: "#94A3B8",
+    fontSize: 11,
+    color: "#64748B",
     marginTop: 2,
-    lineHeight: 14
+    lineHeight: 15
   },
 
   // Pairing
   pairingBox: {
-    backgroundColor: "#162244",
+    backgroundColor: "#F8FAFC",
     borderRadius: 12,
     padding: 12,
-    gap: 6
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "#EEF2F6"
   },
   pairingRow: {
     flexDirection: "row",
@@ -559,12 +560,12 @@ const styles = StyleSheet.create({
   },
   pairingLabel: {
     fontSize: 11,
-    color: "#94A3B8"
+    color: "#64748B"
   },
   pairingVal: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#E2E8F0"
+    color: "#0F2942"
   },
   unpairedBox: {
     alignItems: "center",
@@ -573,18 +574,18 @@ const styles = StyleSheet.create({
   },
   unpairedText: {
     fontSize: 12,
-    color: "#94A3B8"
+    color: "#64748B"
   },
   pairNowBtn: {
-    backgroundColor: "rgba(56, 189, 248, 0.15)",
+    backgroundColor: "#EFF6FF",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "rgba(56, 189, 248, 0.3)"
+    borderColor: "#BFDBFE"
   },
   pairNowBtnText: {
-    color: "#38BDF8",
+    color: "#2563EB",
     fontSize: 11,
     fontWeight: "700"
   },
@@ -595,18 +596,18 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 11,
-    color: "#94A3B8",
+    color: "#64748B",
     marginBottom: 6
   },
   input: {
-    backgroundColor: "#162244",
+    backgroundColor: "#F8FAFC",
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: "#F8FAFC",
+    color: "#0F2942",
     fontSize: 12,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)"
+    borderColor: "#E2E8F0"
   },
   serverBtnRow: {
     flexDirection: "row",
@@ -618,14 +619,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: "rgba(56, 189, 248, 0.1)",
+    backgroundColor: "#EFF6FF",
     borderWidth: 1,
-    borderColor: "rgba(56, 189, 248, 0.3)",
+    borderColor: "#BFDBFE",
     paddingVertical: 10,
     borderRadius: 10
   },
   testBtnText: {
-    color: "#38BDF8",
+    color: "#2563EB",
     fontSize: 12,
     fontWeight: "700"
   },
@@ -648,7 +649,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6
   },
   resetBtnText: {
-    color: "#64748B",
+    color: "#94A3B8",
     fontSize: 11
   },
 
@@ -657,18 +658,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#162244",
+    backgroundColor: "#F8FAFC",
     padding: 14,
-    borderRadius: 12
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#EEF2F6"
   },
   offlineCount: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#38BDF8"
+    color: "#0F2942"
   },
   offlineLabel: {
     fontSize: 11,
-    color: "#94A3B8"
+    color: "#64748B"
   },
   flushBtn: {
     flexDirection: "row",

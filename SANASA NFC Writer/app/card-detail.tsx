@@ -37,14 +37,9 @@ export default function CardDetailModal() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.cardHeader}>
-        <LinearGradient
-          colors={["#2563EB", "#06B6D4"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.iconCircle}
-        >
-          <MaterialCommunityIcons name="credit-card-wireless" size={28} color="#FFFFFF" />
-        </LinearGradient>
+        <View style={styles.iconCircle}>
+          <MaterialCommunityIcons name="credit-card-wireless" size={28} color="#2563EB" />
+        </View>
         <Text style={styles.cardIdText}>{cardId}</Text>
         <View style={styles.statusPill}>
           <Text style={styles.statusPillText}>{status}</Text>
@@ -76,7 +71,7 @@ export default function CardDetailModal() {
 
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Security:</Text>
-          <Text style={[styles.detailValue, { color: "#10B981" }]}>Cryptographic Token Protected</Text>
+          <Text style={[styles.detailValue, { color: "#059669" }]}>Cryptographic Token Protected</Text>
         </View>
       </View>
 
@@ -86,7 +81,7 @@ export default function CardDetailModal() {
         activeOpacity={0.8}
       >
         <LinearGradient
-          colors={["#2563EB", "#06B6D4"]}
+          colors={["#2563EB", "#1D4ED8"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.gradientBtn}
@@ -102,7 +97,7 @@ export default function CardDetailModal() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#070D1E"
+    backgroundColor: "#F8FAFC"
   },
   content: {
     padding: 20,
@@ -116,41 +111,44 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
+    backgroundColor: "#EFF6FF",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
-    shadowColor: "#06B6D4",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 4
+    borderWidth: 1,
+    borderColor: "#BFDBFE"
   },
   cardIdText: {
     fontSize: 18,
     fontWeight: "900",
-    color: "#F8FAFC",
-    letterSpacing: 0.5,
+    color: "#0F2942",
+    letterSpacing: 0.3,
     marginBottom: 6
   },
   statusPill: {
-    backgroundColor: "rgba(56, 189, 248, 0.15)",
+    backgroundColor: "#EFF6FF",
     borderWidth: 1,
-    borderColor: "rgba(56, 189, 248, 0.3)",
+    borderColor: "#BFDBFE",
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 14
   },
   statusPillText: {
     fontSize: 11,
-    color: "#38BDF8",
+    color: "#2563EB",
     fontWeight: "800"
   },
   detailsCard: {
-    backgroundColor: "#0E172E",
+    backgroundColor: "#FFFFFF",
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
+    borderColor: "#EEF2F6",
+    shadowColor: "#64748B",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
     gap: 12,
     marginBottom: 24
   },
@@ -161,12 +159,12 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 11,
-    color: "#94A3B8"
+    color: "#64748B"
   },
   detailValue: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#E2E8F0"
+    color: "#1E293B"
   },
   monoValue: {
     fontSize: 10,

@@ -1,7 +1,6 @@
 import { Tabs, useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { TouchableOpacity, StyleSheet, View, Platform } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 
 export default function TabsLayout() {
   const router = useRouter();
@@ -10,17 +9,18 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerStyle: {
-          backgroundColor: "#070D1E",
+          backgroundColor: "#FFFFFF",
           elevation: 0,
           shadowOpacity: 0,
           borderBottomWidth: 1,
-          borderBottomColor: "rgba(255, 255, 255, 0.08)"
+          borderBottomColor: "#EEF2F6"
         },
-        headerTintColor: "#F8FAFC",
+        headerTintColor: "#0F2942",
         headerTitleStyle: {
           fontWeight: "800",
-          fontSize: 17,
-          letterSpacing: 0.3
+          fontSize: 18,
+          color: "#0F2942",
+          letterSpacing: -0.3
         },
         headerRight: () => (
           <TouchableOpacity
@@ -29,25 +29,29 @@ export default function TabsLayout() {
             activeOpacity={0.7}
           >
             <View style={styles.settingsIconCircle}>
-              <MaterialCommunityIcons name="cog-outline" size={20} color="#38BDF8" />
+              <MaterialCommunityIcons name="cog-outline" size={20} color="#475569" />
             </View>
           </TouchableOpacity>
         ),
         tabBarStyle: {
-          backgroundColor: "#070D1E",
-          borderTopColor: "rgba(255, 255, 255, 0.08)",
+          backgroundColor: "#FFFFFF",
+          borderTopColor: "#EEF2F6",
           borderTopWidth: 1,
-          height: Platform.OS === "ios" ? 84 : 68,
-          paddingBottom: Platform.OS === "ios" ? 24 : 10,
+          height: Platform.OS === "ios" ? 84 : 64,
+          paddingBottom: Platform.OS === "ios" ? 22 : 8,
           paddingTop: 8,
-          elevation: 10
+          elevation: 8,
+          shadowColor: "#64748B",
+          shadowOffset: { width: 0, height: -3 },
+          shadowOpacity: 0.06,
+          shadowRadius: 8
         },
-        tabBarActiveTintColor: "#38BDF8",
-        tabBarInactiveTintColor: "#64748B",
+        tabBarActiveTintColor: "#2563EB",
+        tabBarInactiveTintColor: "#94A3B8",
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: "700",
-          letterSpacing: 0.2
+          marginTop: 2
         }
       }}
     >
@@ -57,11 +61,13 @@ export default function TabsLayout() {
           title: "Dashboard",
           tabBarLabel: "Dashboard",
           tabBarIcon: ({ color, focused }) => (
-            <MaterialCommunityIcons
-              name={focused ? "view-dashboard" : "view-dashboard-outline"}
-              size={22}
-              color={String(color)}
-            />
+            <View style={[styles.tabIconWrap, focused && styles.tabIconWrapActive]}>
+              <MaterialCommunityIcons
+                name={focused ? "view-dashboard" : "view-dashboard-outline"}
+                size={22}
+                color={focused ? "#2563EB" : String(color || "#94A3B8")}
+              />
+            </View>
           )
         }}
       />
@@ -71,11 +77,13 @@ export default function TabsLayout() {
           title: "Terminal Pairing",
           tabBarLabel: "Pairing",
           tabBarIcon: ({ color, focused }) => (
-            <MaterialCommunityIcons
-              name={focused ? "cellphone-link" : "cellphone-link"}
-              size={22}
-              color={String(color)}
-            />
+            <View style={[styles.tabIconWrap, focused && styles.tabIconWrapActive]}>
+              <MaterialCommunityIcons
+                name={focused ? "cellphone-link" : "cellphone-link"}
+                size={22}
+                color={focused ? "#2563EB" : String(color || "#94A3B8")}
+              />
+            </View>
           )
         }}
       />
@@ -85,19 +93,12 @@ export default function TabsLayout() {
           title: "NFC Writer",
           tabBarLabel: "Write Card",
           tabBarIcon: ({ focused }) => (
-            <View style={styles.centerWriterBtnWrap}>
-              <LinearGradient
-                colors={focused ? ["#2563EB", "#06B6D4"] : ["#1E293B", "#0F172A"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={[styles.centerWriterBtn, focused && styles.centerWriterBtnActive]}
-              >
-                <MaterialCommunityIcons
-                  name="nfc"
-                  size={24}
-                  color={focused ? "#FFFFFF" : "#38BDF8"}
-                />
-              </LinearGradient>
+            <View style={[styles.writerIconWrap, focused ? styles.writerIconWrapActive : styles.writerIconWrapInactive]}>
+              <MaterialCommunityIcons
+                name="nfc"
+                size={22}
+                color={focused ? "#FFFFFF" : "#2563EB"}
+              />
             </View>
           )
         }}
@@ -108,11 +109,13 @@ export default function TabsLayout() {
           title: "Audit History",
           tabBarLabel: "History",
           tabBarIcon: ({ color, focused }) => (
-            <MaterialCommunityIcons
-              name={focused ? "history" : "history"}
-              size={22}
-              color={String(color)}
-            />
+            <View style={[styles.tabIconWrap, focused && styles.tabIconWrapActive]}>
+              <MaterialCommunityIcons
+                name={focused ? "history" : "history"}
+                size={22}
+                color={focused ? "#2563EB" : String(color || "#94A3B8")}
+              />
+            </View>
           )
         }}
       />
@@ -125,36 +128,41 @@ const styles = StyleSheet.create({
     marginRight: 16
   },
   settingsIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(56, 189, 248, 0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(56, 189, 248, 0.3)",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  centerWriterBtnWrap: {
-    top: -12,
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  centerWriterBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#F1F5F9",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "rgba(56, 189, 248, 0.4)",
-    shadowColor: "#06B6D4",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 6
+    borderWidth: 1,
+    borderColor: "#E2E8F0"
   },
-  centerWriterBtnActive: {
-    borderColor: "#38BDF8",
-    shadowOpacity: 0.6
+  tabIconWrap: {
+    width: 38,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 14
+  },
+  tabIconWrapActive: {
+    backgroundColor: "rgba(37, 99, 235, 0.08)"
+  },
+  writerIconWrap: {
+    width: 38,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  writerIconWrapActive: {
+    backgroundColor: "#2563EB",
+    shadowColor: "#2563EB",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3
+  },
+  writerIconWrapInactive: {
+    backgroundColor: "rgba(37, 99, 235, 0.1)"
   }
 });

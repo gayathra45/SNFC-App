@@ -73,7 +73,7 @@ export default function LoginScreen() {
           />
           <Text style={styles.appTitle}>SANASA NFC WRITER</Text>
           <View style={styles.badge}>
-            <MaterialCommunityIcons name="shield-check" size={14} color="#38BDF8" />
+            <MaterialCommunityIcons name="shield-check" size={14} color="#2563EB" />
             <Text style={styles.badgeText}>Authorized Branch Staff Only</Text>
           </View>
         </View>
@@ -93,7 +93,7 @@ export default function LoginScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="e.g. galle@gmail.com or 1990..."
-                placeholderTextColor="#64748B"
+                placeholderTextColor="#94A3B8"
                 autoCapitalize="none"
                 value={loginId}
                 onChangeText={setLoginId}
@@ -110,7 +110,7 @@ export default function LoginScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Enter your password"
-                placeholderTextColor="#64748B"
+                placeholderTextColor="#94A3B8"
                 secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={setPassword}
@@ -137,7 +137,7 @@ export default function LoginScreen() {
             activeOpacity={0.8}
           >
             <LinearGradient
-              colors={["#2563EB", "#06B6D4"]}
+              colors={["#2563EB", "#1D4ED8"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.loginGradient}
@@ -165,7 +165,7 @@ export default function LoginScreen() {
 
         {/* Security Notice */}
         <View style={styles.footerNotice}>
-          <MaterialCommunityIcons name="shield-lock" size={14} color="#64748B" />
+          <MaterialCommunityIcons name="shield-lock" size={14} color="#94A3B8" />
           <Text style={styles.footerText}>
             Protected by SANASA Security. All write operations are logged and branch-isolated.
           </Text>
@@ -178,7 +178,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#070D1E"
+    backgroundColor: "#F8FAFC"
   },
   scrollContent: {
     flexGrow: 1,
@@ -199,14 +199,14 @@ const styles = StyleSheet.create({
   appTitle: {
     fontSize: 20,
     fontWeight: "900",
-    color: "#F8FAFC",
+    color: "#0F2942",
     letterSpacing: 1.5
   },
   badge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(56, 189, 248, 0.12)",
-    borderColor: "rgba(56, 189, 248, 0.3)",
+    backgroundColor: "#EFF6FF",
+    borderColor: "#BFDBFE",
     borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 4,
@@ -216,30 +216,30 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 11,
-    color: "#38BDF8",
+    color: "#2563EB",
     fontWeight: "700"
   },
   card: {
-    backgroundColor: "#0E172E",
+    backgroundColor: "#FFFFFF",
     borderRadius: 20,
     padding: 24,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
-    shadowColor: "#000",
+    borderColor: "#EEF2F6",
+    shadowColor: "#64748B",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.06,
     shadowRadius: 10,
-    elevation: 4
+    elevation: 3
   },
   cardTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#F8FAFC",
+    color: "#0F2942",
     marginBottom: 6
   },
   cardDesc: {
     fontSize: 12,
-    color: "#94A3B8",
+    color: "#64748B",
     marginBottom: 20,
     lineHeight: 17
   },
@@ -249,15 +249,15 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 11.5,
     fontWeight: "700",
-    color: "#94A3B8",
+    color: "#475569",
     marginBottom: 6
   },
   inputWrap: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#162244",
+    backgroundColor: "#F8FAFC",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
+    borderColor: "#E2E8F0",
     borderRadius: 12,
     paddingHorizontal: 12
   },
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     height: 48,
-    color: "#F8FAFC",
+    color: "#0F2942",
     fontSize: 13
   },
   eyeBtn: {
@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 11,
-    color: "#64748B",
+    color: "#94A3B8",
     textAlign: "center"
   }
 });

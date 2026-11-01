@@ -110,14 +110,9 @@ export default function PairingScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Header Info */}
       <View style={styles.header}>
-        <LinearGradient
-          colors={["#2563EB", "#06B6D4"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.iconCircle}
-        >
-          <MaterialCommunityIcons name="cellphone-link" size={30} color="#FFFFFF" />
-        </LinearGradient>
+        <View style={styles.iconCircle}>
+          <MaterialCommunityIcons name="cellphone-link" size={30} color="#2563EB" />
+        </View>
         <Text style={styles.title}>Desktop Portal Pairing</Text>
         <Text style={styles.subtitle}>
           Securely link this phone with your branch desktop session to wirelessly receive card URLs for physical writing.
@@ -155,7 +150,7 @@ export default function PairingScreen() {
           </View>
 
           <View style={styles.instructionBanner}>
-            <MaterialCommunityIcons name="information" size={16} color="#38BDF8" />
+            <MaterialCommunityIcons name="information" size={16} color="#2563EB" />
             <Text style={styles.instructionText}>
               On the website, click "Transfer to NFC Writer" on any card to send it directly to this phone.
             </Text>
@@ -166,7 +161,7 @@ export default function PairingScreen() {
             onPress={handleUnpair}
             disabled={loading}
           >
-            <MaterialCommunityIcons name="link-off" size={18} color="#EF4444" />
+            <MaterialCommunityIcons name="link-off" size={18} color="#DC2626" />
             <Text style={styles.unpairBtnText}>Disconnect / Unpair Phone</Text>
           </TouchableOpacity>
         </View>
@@ -183,7 +178,7 @@ export default function PairingScreen() {
             <TextInput
               style={styles.codeInput}
               placeholder="e.g. 7X3M9A"
-              placeholderTextColor="#64748B"
+              placeholderTextColor="#94A3B8"
               value={pairingCode}
               onChangeText={(t) => setPairingCode(t.toUpperCase())}
               maxLength={6}
@@ -203,8 +198,8 @@ export default function PairingScreen() {
             <LinearGradient
               colors={
                 loading || pairingCode.length < 6
-                  ? ["#334155", "#1E293B"]
-                  : ["#2563EB", "#06B6D4"]
+                  ? ["#CBD5E1", "#94A3B8"]
+                  : ["#2563EB", "#1D4ED8"]
               }
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -260,7 +255,7 @@ export default function PairingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#070D1E"
+    backgroundColor: "#F8FAFC"
   },
   content: {
     padding: 16,
@@ -274,24 +269,22 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
+    backgroundColor: "#EFF6FF",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
-    shadowColor: "#06B6D4",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 4
+    borderWidth: 1,
+    borderColor: "#DBEAFE"
   },
   title: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#F8FAFC",
+    color: "#0F2942",
     marginBottom: 6
   },
   subtitle: {
     fontSize: 11.5,
-    color: "#94A3B8",
+    color: "#64748B",
     textAlign: "center",
     lineHeight: 17,
     paddingHorizontal: 16
@@ -299,12 +292,17 @@ const styles = StyleSheet.create({
 
   // Paired Card
   pairedCard: {
-    backgroundColor: "#0E172E",
+    backgroundColor: "#FFFFFF",
     borderRadius: 18,
     padding: 18,
     borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.4)",
-    marginBottom: 16
+    borderColor: "#A7F3D0",
+    marginBottom: 16,
+    shadowColor: "#64748B",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2
   },
   pairedHeader: {
     flexDirection: "row",
@@ -323,19 +321,21 @@ const styles = StyleSheet.create({
   pairedTitle: {
     fontSize: 15,
     fontWeight: "800",
-    color: "#F8FAFC"
+    color: "#0F2942"
   },
   pairedBranch: {
     fontSize: 11,
-    color: "#10B981",
+    color: "#059669",
     fontWeight: "700"
   },
   pairedDetails: {
-    backgroundColor: "#162244",
+    backgroundColor: "#F8FAFC",
     borderRadius: 12,
     padding: 12,
     gap: 8,
-    marginBottom: 14
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#EEF2F6"
   },
   detailItem: {
     flexDirection: "row",
@@ -343,12 +343,12 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 11,
-    color: "#94A3B8"
+    color: "#64748B"
   },
   detailVal: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#E2E8F0"
+    color: "#1E293B"
   },
   mono: {
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
@@ -358,17 +358,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "rgba(56, 189, 248, 0.1)",
+    backgroundColor: "#EFF6FF",
     padding: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(56, 189, 248, 0.25)",
+    borderColor: "#BFDBFE",
     marginBottom: 14
   },
   instructionText: {
     flex: 1,
     fontSize: 11,
-    color: "#BAE6FD",
+    color: "#1E40AF",
     lineHeight: 16
   },
   unpairBtn: {
@@ -377,51 +377,56 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 6,
     paddingVertical: 10,
-    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    backgroundColor: "#FEF2F2",
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(239, 68, 68, 0.3)"
+    borderColor: "#FECACA"
   },
   unpairBtnText: {
-    color: "#EF4444",
+    color: "#DC2626",
     fontSize: 12,
     fontWeight: "700"
   },
 
   // Unpaired Form
   unpairedCard: {
-    backgroundColor: "#0E172E",
+    backgroundColor: "#FFFFFF",
     borderRadius: 18,
     padding: 20,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
-    marginBottom: 16
+    borderColor: "#EEF2F6",
+    marginBottom: 16,
+    shadowColor: "#64748B",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2
   },
   formTitle: {
     fontSize: 15,
     fontWeight: "800",
-    color: "#F8FAFC",
+    color: "#0F2942",
     marginBottom: 4
   },
   formDesc: {
     fontSize: 11.5,
-    color: "#94A3B8",
+    color: "#64748B",
     marginBottom: 16
   },
   codeInputContainer: {
     marginBottom: 16
   },
   codeInput: {
-    backgroundColor: "#162244",
+    backgroundColor: "#F8FAFC",
     borderRadius: 12,
     height: 56,
     textAlign: "center",
     fontSize: 22,
     fontWeight: "900",
-    color: "#38BDF8",
+    color: "#0F2942",
     letterSpacing: 8,
     borderWidth: 1.5,
-    borderColor: "rgba(56, 189, 248, 0.4)"
+    borderColor: "#BFDBFE"
   },
   pairBtn: {
     borderRadius: 12,
@@ -444,15 +449,17 @@ const styles = StyleSheet.create({
     fontWeight: "800"
   },
   stepsBox: {
-    backgroundColor: "#162244",
+    backgroundColor: "#F8FAFC",
     borderRadius: 12,
     padding: 14,
-    gap: 10
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "#EEF2F6"
   },
   stepsTitle: {
     fontSize: 11.5,
     fontWeight: "800",
-    color: "#F8FAFC",
+    color: "#0F2942",
     marginBottom: 4
   },
   stepRow: {
@@ -464,19 +471,19 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: "rgba(56, 189, 248, 0.15)",
+    backgroundColor: "#EFF6FF",
     alignItems: "center",
     justifyContent: "center"
   },
   stepBadgeText: {
-    color: "#38BDF8",
+    color: "#2563EB",
     fontSize: 10,
     fontWeight: "800"
   },
   stepText: {
     flex: 1,
     fontSize: 11,
-    color: "#94A3B8",
+    color: "#64748B",
     lineHeight: 16
   },
   diagPill: {
@@ -488,6 +495,6 @@ const styles = StyleSheet.create({
   },
   diagText: {
     fontSize: 10.5,
-    color: "#64748B"
+    color: "#94A3B8"
   }
 });

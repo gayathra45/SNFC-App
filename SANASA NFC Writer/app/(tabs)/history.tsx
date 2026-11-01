@@ -10,7 +10,6 @@ import {
   Platform
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import * as Device from "expo-device";
 import {
   getWriteHistory,
@@ -110,7 +109,7 @@ export default function HistoryScreen() {
       {/* Diagnostics Card */}
       <View style={styles.diagCard}>
         <View style={styles.diagHeader}>
-          <MaterialCommunityIcons name="chip" size={20} color="#38BDF8" />
+          <MaterialCommunityIcons name="chip" size={20} color="#2563EB" />
           <Text style={styles.diagTitle}>NFC & Hardware Diagnostics</Text>
         </View>
 
@@ -148,7 +147,7 @@ export default function HistoryScreen() {
           onPress={handleExportDiagnostics}
           activeOpacity={0.8}
         >
-          <MaterialCommunityIcons name="file-export-outline" size={16} color="#38BDF8" />
+          <MaterialCommunityIcons name="file-export-outline" size={16} color="#2563EB" />
           <Text style={styles.exportBtnText}>Export Sanitized Audit Log</Text>
         </TouchableOpacity>
       </View>
@@ -181,7 +180,7 @@ export default function HistoryScreen() {
 
         {filteredHistory.length === 0 ? (
           <View style={styles.emptyBox}>
-            <MaterialCommunityIcons name="history" size={32} color="#64748B" />
+            <MaterialCommunityIcons name="history" size={32} color="#94A3B8" />
             <Text style={styles.emptyText}>No write events recorded yet.</Text>
             <Text style={styles.emptySubtext}>
               Completed physical card write events will be logged here.
@@ -204,10 +203,10 @@ export default function HistoryScreen() {
                       size={18}
                       color={
                         item.status === "Success"
-                          ? "#10B981"
+                          ? "#059669"
                           : item.status === "Sync Pending"
-                          ? "#F59E0B"
-                          : "#EF4444"
+                          ? "#D97706"
+                          : "#DC2626"
                       }
                     />
                     <Text style={styles.cardIdText}>{item.cardId}</Text>
@@ -276,19 +275,24 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#070D1E"
+    backgroundColor: "#F8FAFC"
   },
   content: {
     padding: 16,
     paddingBottom: 40
   },
   diagCard: {
-    backgroundColor: "#0E172E",
+    backgroundColor: "#FFFFFF",
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
-    marginBottom: 16
+    borderColor: "#EEF2F6",
+    marginBottom: 16,
+    shadowColor: "#64748B",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2
   },
   diagHeader: {
     flexDirection: "row",
@@ -299,14 +303,16 @@ const styles = StyleSheet.create({
   diagTitle: {
     fontSize: 13.5,
     fontWeight: "800",
-    color: "#F8FAFC"
+    color: "#0F2942"
   },
   diagGrid: {
-    backgroundColor: "#162244",
+    backgroundColor: "#F8FAFC",
     borderRadius: 12,
     padding: 12,
     gap: 8,
-    marginBottom: 12
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#EEF2F6"
   },
   diagRow: {
     flexDirection: "row",
@@ -315,39 +321,39 @@ const styles = StyleSheet.create({
   },
   diagLabel: {
     fontSize: 11,
-    color: "#94A3B8"
+    color: "#64748B"
   },
   diagVal: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#E2E8F0"
+    color: "#1E293B"
   },
   mono: {
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
     fontSize: 10
   },
   textGreen: {
-    color: "#10B981"
+    color: "#059669"
   },
   textAmber: {
-    color: "#F59E0B"
+    color: "#D97706"
   },
   textRed: {
-    color: "#EF4444"
+    color: "#DC2626"
   },
   exportBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: "rgba(56, 189, 248, 0.1)",
+    backgroundColor: "#EFF6FF",
     borderWidth: 1,
-    borderColor: "rgba(56, 189, 248, 0.3)",
+    borderColor: "#BFDBFE",
     paddingVertical: 10,
     borderRadius: 10
   },
   exportBtnText: {
-    color: "#38BDF8",
+    color: "#2563EB",
     fontSize: 12,
     fontWeight: "700"
   },
@@ -364,11 +370,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: "800",
-    color: "#F8FAFC"
+    color: "#0F2942"
   },
   clearText: {
     fontSize: 11.5,
-    color: "#EF4444",
+    color: "#DC2626",
     fontWeight: "700"
   },
   filterPills: {
@@ -379,13 +385,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 10,
-    backgroundColor: "#0E172E",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)"
+    borderColor: "#E2E8F0"
   },
   pillActive: {
-    backgroundColor: "rgba(56, 189, 248, 0.15)",
-    borderColor: "#38BDF8"
+    backgroundColor: "#EFF6FF",
+    borderColor: "#2563EB"
   },
   pillText: {
     fontSize: 11,
@@ -393,27 +399,27 @@ const styles = StyleSheet.create({
     color: "#64748B"
   },
   pillTextActive: {
-    color: "#38BDF8"
+    color: "#2563EB"
   },
 
   // Empty Box
   emptyBox: {
-    backgroundColor: "#0E172E",
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 30,
     alignItems: "center",
     gap: 8,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.06)"
+    borderColor: "#EEF2F6"
   },
   emptyText: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#E2E8F0"
+    color: "#334155"
   },
   emptySubtext: {
     fontSize: 11,
-    color: "#64748B",
+    color: "#94A3B8",
     textAlign: "center"
   },
 
@@ -422,11 +428,16 @@ const styles = StyleSheet.create({
     gap: 10
   },
   cardItem: {
-    backgroundColor: "#0E172E",
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
+    borderColor: "#EEF2F6",
+    shadowColor: "#64748B",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
     gap: 10
   },
   cardItemHeader: {
@@ -442,7 +453,7 @@ const styles = StyleSheet.create({
   cardIdText: {
     fontSize: 12.5,
     fontWeight: "800",
-    color: "#F8FAFC",
+    color: "#0F2942",
     letterSpacing: 0.3
   },
   statusBadge: {
@@ -451,32 +462,34 @@ const styles = StyleSheet.create({
     borderRadius: 6
   },
   statusBadgeSuccess: {
-    backgroundColor: "rgba(16, 185, 129, 0.15)"
+    backgroundColor: "#ECFDF5"
   },
   statusBadgeSync: {
-    backgroundColor: "rgba(245, 158, 11, 0.15)"
+    backgroundColor: "#FFFBEB"
   },
   statusBadgeFailed: {
-    backgroundColor: "rgba(239, 68, 68, 0.15)"
+    backgroundColor: "#FEF2F2"
   },
   statusBadgeText: {
     fontSize: 10,
     fontWeight: "800"
   },
   statusBadgeTextSuccess: {
-    color: "#10B981"
+    color: "#059669"
   },
   statusBadgeTextSync: {
-    color: "#F59E0B"
+    color: "#D97706"
   },
   statusBadgeTextFailed: {
-    color: "#EF4444"
+    color: "#DC2626"
   },
   cardItemBody: {
-    backgroundColor: "#162244",
+    backgroundColor: "#F8FAFC",
     borderRadius: 10,
     padding: 10,
-    gap: 6
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "#EEF2F6"
   },
   metaRow: {
     flexDirection: "row",
@@ -485,11 +498,11 @@ const styles = StyleSheet.create({
   },
   metaLabel: {
     fontSize: 10.5,
-    color: "#94A3B8"
+    color: "#64748B"
   },
   metaVal: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#E2E8F0"
+    color: "#334155"
   }
 });
