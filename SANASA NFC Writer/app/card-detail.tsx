@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { maskUrlToken } from "../src/services/storageService";
 
 export default function CardDetailModal() {
@@ -36,11 +37,18 @@ export default function CardDetailModal() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.cardHeader}>
-        <View style={styles.iconCircle}>
-          <MaterialCommunityIcons name="credit-card-wireless" size={28} color="#102A43" />
-        </View>
+        <LinearGradient
+          colors={["#2563EB", "#06B6D4"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.iconCircle}
+        >
+          <MaterialCommunityIcons name="credit-card-wireless" size={28} color="#FFFFFF" />
+        </LinearGradient>
         <Text style={styles.cardIdText}>{cardId}</Text>
-        <Text style={styles.statusPill}>{status}</Text>
+        <View style={styles.statusPill}>
+          <Text style={styles.statusPillText}>{status}</Text>
+        </View>
       </View>
 
       <View style={styles.detailsCard}>
@@ -51,38 +59,41 @@ export default function CardDetailModal() {
 
         {policyHolderName ? (
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Policy Holder:</Text>
+            <Text style={styles.detailLabel}>Policyholder:</Text>
             <Text style={styles.detailValue}>{policyHolderName}</Text>
           </View>
         ) : null}
 
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Payload URI (Masked):</Text>
-          <Text style={[styles.detailValue, styles.mono]}>
-            {cardUrl ? maskUrlToken(cardUrl) : "Not Issued"}
-          </Text>
+          <Text style={styles.monoValue}>{maskUrlToken(cardUrl)}</Text>
         </View>
 
         <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Security Bound:</Text>
-          <Text style={[styles.detailValue, { color: "#059669" }]}>Branch Authorized Token</Text>
+          <Text style={styles.detailLabel}>NFC Format:</Text>
+          <Text style={styles.detailValue}>NDEF URI Record (NFC Forum Type 2)</Text>
+        </View>
+
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Security:</Text>
+          <Text style={[styles.detailValue, { color: "#10B981" }]}>Cryptographic Token Protected</Text>
         </View>
       </View>
 
-      <View style={styles.infoBanner}>
-        <MaterialCommunityIcons name="shield-lock-outline" size={18} color="#059669" />
-        <Text style={styles.infoBannerText}>
-          The complete access token URL is protected and masked to prevent unauthorized disclosure.
-        </Text>
-      </View>
-
-      <TouchableOpacity style={styles.writeBtn} onPress={handleProceedToWrite}>
-        <MaterialCommunityIcons name="nfc" size={20} color="#FFFFFF" />
-        <Text style={styles.writeBtnText}>Proceed to Write NFC Card</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
-        <Text style={styles.closeBtnText}>Close</Text>
+      <TouchableOpacity
+        style={styles.writeBtn}
+        onPress={handleProceedToWrite}
+        activeOpacity={0.8}
+      >
+        <LinearGradient
+          colors={["#2563EB", "#06B6D4"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.gradientBtn}
+        >
+          <MaterialCommunityIcons name="nfc" size={20} color="#FFFFFF" />
+          <Text style={styles.writeBtnText}>Proceed to Write Card</Text>
+        </LinearGradient>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -91,48 +102,57 @@ export default function CardDetailModal() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F1F5F9"
+    backgroundColor: "#070D1E"
   },
   content: {
-    padding: 20
+    padding: 20,
+    paddingBottom: 40
   },
   cardHeader: {
     alignItems: "center",
-    marginBottom: 20
+    marginBottom: 24
   },
   iconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "#E2E8F0",
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 10
+    marginBottom: 12,
+    shadowColor: "#06B6D4",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4
   },
   cardIdText: {
     fontSize: 18,
-    fontWeight: "800",
-    color: "#102A43",
+    fontWeight: "900",
+    color: "#F8FAFC",
+    letterSpacing: 0.5,
     marginBottom: 6
   },
   statusPill: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#059669",
-    backgroundColor: "#ECFDF5",
+    backgroundColor: "rgba(56, 189, 248, 0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(56, 189, 248, 0.3)",
     paddingHorizontal: 12,
     paddingVertical: 4,
-    borderRadius: 12,
-    overflow: "hidden"
+    borderRadius: 14
+  },
+  statusPillText: {
+    fontSize: 11,
+    color: "#38BDF8",
+    fontWeight: "800"
   },
   detailsCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    backgroundColor: "#0E172E",
+    borderRadius: 18,
     padding: 16,
-    gap: 12,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    marginBottom: 16
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    gap: 12,
+    marginBottom: 24
   },
   detailRow: {
     flexDirection: "row",
@@ -140,56 +160,34 @@ const styles = StyleSheet.create({
     alignItems: "center"
   },
   detailLabel: {
-    fontSize: 12,
-    color: "#64748B"
+    fontSize: 11,
+    color: "#94A3B8"
   },
   detailValue: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#1E293B"
+    color: "#E2E8F0"
   },
-  mono: {
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+  monoValue: {
     fontSize: 10,
-    maxWidth: 200
-  },
-  infoBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#ECFDF5",
-    borderRadius: 12,
-    padding: 12,
-    gap: 10,
-    marginBottom: 20
-  },
-  infoBannerText: {
-    fontSize: 11,
-    color: "#065F46",
-    flex: 1,
-    lineHeight: 16
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    color: "#64748B",
+    maxWidth: 180
   },
   writeBtn: {
-    backgroundColor: "#102A43",
-    borderRadius: 12,
-    height: 48,
+    borderRadius: 14,
+    overflow: "hidden"
+  },
+  gradientBtn: {
+    height: 50,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    marginBottom: 10
+    gap: 8
   },
   writeBtnText: {
     color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: "700"
-  },
-  closeBtn: {
-    alignItems: "center",
-    paddingVertical: 12
-  },
-  closeBtnText: {
-    fontSize: 13,
-    color: "#64748B",
-    fontWeight: "600"
+    fontWeight: "800"
   }
 });

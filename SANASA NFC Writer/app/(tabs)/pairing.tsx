@@ -11,6 +11,8 @@ import {
   Platform
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
 import {
   getStoredPairing,
   getStoredStaff,
@@ -53,14 +55,20 @@ export default function PairingScreen() {
       return;
     }
 
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch {}
+
     setLoading(true);
     try {
       const res = await pairWithPortal(clean);
       if (res.success && res.pairing) {
         setPairing(res.pairing);
         setPairingCode("");
+        try {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch {}
         Alert.alert("Success", `Device paired to ${res.pairing.branch} branch portal!`);
-        // Connect socket
         socketService.connect().catch(() => {});
       } else {
         Alert.alert("Pairing Failed", res.error || "Invalid or expired pairing code.");
@@ -75,7 +83,7 @@ export default function PairingScreen() {
   const handleUnpair = async () => {
     Alert.alert(
       "Unpair Device?",
-      "This will disconnect wireless transfers from the branch portal.",
+      "This will disconnect wireless card transfers from the branch desktop portal.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -102,12 +110,17 @@ export default function PairingScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Header Info */}
       <View style={styles.header}>
-        <View style={styles.iconCircle}>
-          <MaterialCommunityIcons name="cellphone-link" size={32} color="#102A43" />
-        </View>
-        <Text style={styles.title}>Portal Device Pairing</Text>
+        <LinearGradient
+          colors={["#2563EB", "#06B6D4"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.iconCircle}
+        >
+          <MaterialCommunityIcons name="cellphone-link" size={30} color="#FFFFFF" />
+        </LinearGradient>
+        <Text style={styles.title}>Desktop Portal Pairing</Text>
         <Text style={styles.subtitle}>
-          Securely link this phone with your branch desktop session to receive card URLs wirelessly.
+          Securely link this phone with your branch desktop session to wirelessly receive card URLs for physical writing.
         </Text>
       </View>
 
@@ -119,7 +132,7 @@ export default function PairingScreen() {
               <MaterialCommunityIcons name="check" size={20} color="#FFFFFF" />
             </View>
             <View>
-              <Text style={styles.pairedTitle}>Device Connected</Text>
+              <Text style={styles.pairedTitle}>Terminal Connected</Text>
               <Text style={styles.pairedBranch}>{pairing.branch} Branch Session</Text>
             </View>
           </View>
@@ -142,9 +155,9 @@ export default function PairingScreen() {
           </View>
 
           <View style={styles.instructionBanner}>
-            <MaterialCommunityIcons name="information-outline" size={16} color="#059669" />
+            <MaterialCommunityIcons name="information" size={16} color="#38BDF8" />
             <Text style={styles.instructionText}>
-              On the website, click "Transfer to NFC Writer" on any card to send it here.
+              On the website, click "Transfer to NFC Writer" on any card to send it directly to this phone.
             </Text>
           </View>
 
@@ -153,16 +166,16 @@ export default function PairingScreen() {
             onPress={handleUnpair}
             disabled={loading}
           >
-            <MaterialCommunityIcons name="link-off" size={18} color="#DC2626" />
+            <MaterialCommunityIcons name="link-off" size={18} color="#EF4444" />
             <Text style={styles.unpairBtnText}>Disconnect / Unpair Phone</Text>
           </TouchableOpacity>
         </View>
       ) : (
         /* Not Paired: Input Form */
         <View style={styles.unpairedCard}>
-          <Text style={styles.formTitle}>Enter Pairing Code</Text>
+          <Text style={styles.formTitle}>Enter 6-Digit Pairing PIN</Text>
           <Text style={styles.formDesc}>
-            Type the 6-character code displayed in the portal modal:
+            Type the code shown on the desktop portal screen:
           </Text>
 
           {/* 6-character input */}
@@ -170,7 +183,7 @@ export default function PairingScreen() {
             <TextInput
               style={styles.codeInput}
               placeholder="e.g. 7X3M9A"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor="#64748B"
               value={pairingCode}
               onChangeText={(t) => setPairingCode(t.toUpperCase())}
               maxLength={6}
@@ -185,34 +198,46 @@ export default function PairingScreen() {
             style={[styles.pairBtn, (loading || pairingCode.length < 6) && styles.pairBtnDisabled]}
             onPress={handlePair}
             disabled={loading || pairingCode.length < 6}
+            activeOpacity={0.8}
           >
-            {loading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <View style={styles.btnRow}>
-                <MaterialCommunityIcons name="link-variant" size={20} color="#FFFFFF" />
-                <Text style={styles.pairBtnText}>Connect & Pair Device</Text>
-              </View>
-            )}
+            <LinearGradient
+              colors={
+                loading || pairingCode.length < 6
+                  ? ["#334155", "#1E293B"]
+                  : ["#2563EB", "#06B6D4"]
+              }
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.pairGradientContent}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <MaterialCommunityIcons name="link-variant" size={20} color="#FFFFFF" />
+                  <Text style={styles.pairBtnText}>Connect & Pair Device</Text>
+                </>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
 
           {/* Step by step guide */}
           <View style={styles.stepsBox}>
             <Text style={styles.stepsTitle}>How to get a Pairing Code:</Text>
             <View style={styles.stepRow}>
-              <Text style={styles.stepNum}>1</Text>
-              <Text style={styles.stepText}>Log in to the SANASA Insurance website on your computer.</Text>
+              <View style={styles.stepBadge}><Text style={styles.stepBadgeText}>1</Text></View>
+              <Text style={styles.stepText}>Log in to SANASA Insurance portal on desktop PC.</Text>
             </View>
             <View style={styles.stepRow}>
-              <Text style={styles.stepNum}>2</Text>
-              <Text style={styles.stepText}>Go to Branch Office Staff &gt; Third Party &gt; Optional NFC Cards.</Text>
+              <View style={styles.stepBadge}><Text style={styles.stepBadgeText}>2</Text></View>
+              <Text style={styles.stepText}>Navigate to Branch Office Staff &gt; Third Party &gt; Optional NFC Cards.</Text>
             </View>
             <View style={styles.stepRow}>
-              <Text style={styles.stepNum}>3</Text>
+              <View style={styles.stepBadge}><Text style={styles.stepBadgeText}>3</Text></View>
               <Text style={styles.stepText}>Click the button labeled "Pair NFC Writer Phone".</Text>
             </View>
             <View style={styles.stepRow}>
-              <Text style={styles.stepNum}>4</Text>
+              <View style={styles.stepBadge}><Text style={styles.stepBadgeText}>4</Text></View>
               <Text style={styles.stepText}>Enter the generated code into this phone and tap Connect.</Text>
             </View>
           </View>
@@ -224,7 +249,7 @@ export default function PairingScreen() {
         <View style={styles.diagPill}>
           <MaterialCommunityIcons name="cellphone-cog" size={14} color="#64748B" />
           <Text style={styles.diagText}>
-            Phone: {deviceInfo.deviceName} ({deviceInfo.deviceId})
+            Device: {deviceInfo.deviceName} ({deviceInfo.deviceId})
           </Text>
         </View>
       )}
@@ -235,7 +260,7 @@ export default function PairingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F1F5F9"
+    backgroundColor: "#070D1E"
   },
   content: {
     padding: 16,
@@ -249,35 +274,37 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 12
+    marginBottom: 12,
+    shadowColor: "#06B6D4",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4
   },
   title: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#102A43",
-    marginBottom: 4
+    color: "#F8FAFC",
+    marginBottom: 6
   },
   subtitle: {
-    fontSize: 12,
-    color: "#64748B",
+    fontSize: 11.5,
+    color: "#94A3B8",
     textAlign: "center",
-    lineHeight: 18,
+    lineHeight: 17,
     paddingHorizontal: 16
   },
+
+  // Paired Card
   pairedCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#0E172E",
     borderRadius: 18,
-    padding: 20,
-    borderWidth: 1.5,
-    borderColor: "#10B981",
-    shadowColor: "#059669",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.4)",
+    marginBottom: 16
   },
   pairedHeader: {
     flexDirection: "row",
@@ -286,25 +313,25 @@ const styles = StyleSheet.create({
     marginBottom: 16
   },
   checkCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: "#059669",
     alignItems: "center",
     justifyContent: "center"
   },
   pairedTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "800",
-    color: "#059669"
+    color: "#F8FAFC"
   },
   pairedBranch: {
-    fontSize: 12,
-    color: "#334155",
-    fontWeight: "600"
+    fontSize: 11,
+    color: "#10B981",
+    fontWeight: "700"
   },
   pairedDetails: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#162244",
     borderRadius: 12,
     padding: 12,
     gap: 8,
@@ -316,148 +343,151 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 11,
-    color: "#64748B"
+    color: "#94A3B8"
   },
   detailVal: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#1E293B"
+    color: "#E2E8F0"
   },
   mono: {
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace"
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    fontSize: 10
   },
   instructionBanner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#ECFDF5",
-    borderRadius: 10,
-    padding: 10,
     gap: 8,
-    marginBottom: 16
+    backgroundColor: "rgba(56, 189, 248, 0.1)",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(56, 189, 248, 0.25)",
+    marginBottom: 14
   },
   instructionText: {
-    fontSize: 11,
-    color: "#065F46",
     flex: 1,
+    fontSize: 11,
+    color: "#BAE6FD",
     lineHeight: 16
   },
   unpairBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FEE2E2",
+    gap: 6,
+    paddingVertical: 10,
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
     borderRadius: 10,
-    height: 42,
-    gap: 6
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.3)"
   },
   unpairBtnText: {
-    color: "#DC2626",
-    fontSize: 13,
+    color: "#EF4444",
+    fontSize: 12,
     fontWeight: "700"
   },
+
+  // Unpaired Form
   unpairedCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#0E172E",
     borderRadius: 18,
     padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    marginBottom: 16
   },
   formTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "800",
-    color: "#102A43",
+    color: "#F8FAFC",
     marginBottom: 4
   },
   formDesc: {
-    fontSize: 12,
-    color: "#64748B",
+    fontSize: 11.5,
+    color: "#94A3B8",
     marginBottom: 16
   },
   codeInputContainer: {
     marginBottom: 16
   },
   codeInput: {
+    backgroundColor: "#162244",
+    borderRadius: 12,
     height: 56,
-    borderWidth: 2,
-    borderColor: "#CBD5E1",
-    borderRadius: 14,
-    backgroundColor: "#F8FAFC",
-    fontSize: 26,
-    fontWeight: "800",
-    color: "#102A43",
     textAlign: "center",
-    letterSpacing: 6,
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace"
+    fontSize: 22,
+    fontWeight: "900",
+    color: "#38BDF8",
+    letterSpacing: 8,
+    borderWidth: 1.5,
+    borderColor: "rgba(56, 189, 248, 0.4)"
   },
   pairBtn: {
-    backgroundColor: "#102A43",
     borderRadius: 12,
+    overflow: "hidden",
+    marginBottom: 20
+  },
+  pairGradientContent: {
     height: 48,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 20
+    gap: 8
   },
   pairBtnDisabled: {
     opacity: 0.5
   },
-  btnRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8
-  },
   pairBtnText: {
     color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "700"
+    fontSize: 13,
+    fontWeight: "800"
   },
   stepsBox: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#162244",
     borderRadius: 12,
     padding: 14,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    gap: 8
+    gap: 10
   },
   stepsTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#334155",
-    marginBottom: 2
+    fontSize: 11.5,
+    fontWeight: "800",
+    color: "#F8FAFC",
+    marginBottom: 4
   },
   stepRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8
+    alignItems: "center",
+    gap: 10
   },
-  stepNum: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: "#102A43",
-    color: "#FFFFFF",
+  stepBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "rgba(56, 189, 248, 0.15)",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  stepBadgeText: {
+    color: "#38BDF8",
     fontSize: 10,
-    fontWeight: "700",
-    textAlign: "center",
-    lineHeight: 18
+    fontWeight: "800"
   },
   stepText: {
-    fontSize: 11,
-    color: "#64748B",
     flex: 1,
+    fontSize: 11,
+    color: "#94A3B8",
     lineHeight: 16
   },
   diagPill: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 18,
-    gap: 6
+    gap: 6,
+    paddingVertical: 8
   },
   diagText: {
-    fontSize: 11,
+    fontSize: 10.5,
     color: "#64748B"
   }
 });

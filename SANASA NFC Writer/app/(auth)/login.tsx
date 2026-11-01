@@ -14,6 +14,8 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
 import { loginStaff } from "../../src/services/authService";
 import { socketService } from "../../src/services/socketService";
 
@@ -30,11 +32,17 @@ export default function LoginScreen() {
       return;
     }
 
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch {}
+
     setLoading(true);
     try {
       const res = await loginStaff(loginId, password);
       if (res.success && res.user) {
-        // Reconnect socket with authenticated identity
+        try {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch {}
         socketService.connect().catch(() => {});
         router.replace("/(tabs)");
       } else {
@@ -65,7 +73,7 @@ export default function LoginScreen() {
           />
           <Text style={styles.appTitle}>SANASA NFC WRITER</Text>
           <View style={styles.badge}>
-            <MaterialCommunityIcons name="shield-check" size={14} color="#059669" />
+            <MaterialCommunityIcons name="shield-check" size={14} color="#38BDF8" />
             <Text style={styles.badgeText}>Authorized Branch Staff Only</Text>
           </View>
         </View>
@@ -74,7 +82,7 @@ export default function LoginScreen() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Staff Sign In</Text>
           <Text style={styles.cardDesc}>
-            Log in with your SANASA branch office credentials to pair with the web portal and write NFC cards.
+            Log in with your SANASA branch office credentials to pair with the web portal and write physical cards.
           </Text>
 
           {/* Login ID Input */}
@@ -85,7 +93,7 @@ export default function LoginScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="e.g. galle@gmail.com or 1990..."
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor="#64748B"
                 autoCapitalize="none"
                 value={loginId}
                 onChangeText={setLoginId}
@@ -102,7 +110,7 @@ export default function LoginScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Enter your password"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor="#64748B"
                 secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={setPassword}
@@ -126,15 +134,23 @@ export default function LoginScreen() {
             style={[styles.loginBtn, loading && styles.btnDisabled]}
             onPress={handleLogin}
             disabled={loading}
+            activeOpacity={0.8}
           >
-            {loading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <View style={styles.btnRow}>
-                <Text style={styles.loginBtnText}>Sign In</Text>
-                <MaterialCommunityIcons name="arrow-right" size={18} color="#FFFFFF" />
-              </View>
-            )}
+            <LinearGradient
+              colors={["#2563EB", "#06B6D4"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.loginGradient}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <View style={styles.btnRow}>
+                  <Text style={styles.loginBtnText}>Sign In</Text>
+                  <MaterialCommunityIcons name="arrow-right" size={18} color="#FFFFFF" />
+                </View>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
 
           {/* Settings link for Server IP */}
@@ -149,9 +165,9 @@ export default function LoginScreen() {
 
         {/* Security Notice */}
         <View style={styles.footerNotice}>
-          <MaterialCommunityIcons name="lock" size={14} color="#64748B" />
+          <MaterialCommunityIcons name="shield-lock" size={14} color="#64748B" />
           <Text style={styles.footerText}>
-            Protected by SANASA Security. Actions are logged and branch-isolated.
+            Protected by SANASA Security. All write operations are logged and branch-isolated.
           </Text>
         </View>
       </ScrollView>
@@ -162,7 +178,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#102A43"
+    backgroundColor: "#070D1E"
   },
   scrollContent: {
     flexGrow: 1,
@@ -182,15 +198,15 @@ const styles = StyleSheet.create({
   },
   appTitle: {
     fontSize: 20,
-    fontWeight: "800",
-    color: "#FFFFFF",
+    fontWeight: "900",
+    color: "#F8FAFC",
     letterSpacing: 1.5
   },
   badge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(5, 150, 105, 0.15)",
-    borderColor: "rgba(5, 150, 105, 0.4)",
+    backgroundColor: "rgba(56, 189, 248, 0.12)",
+    borderColor: "rgba(56, 189, 248, 0.3)",
     borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 4,
@@ -199,74 +215,74 @@ const styles = StyleSheet.create({
     gap: 6
   },
   badgeText: {
-    color: "#34D399",
     fontSize: 11,
-    fontWeight: "600"
+    color: "#38BDF8",
+    fontWeight: "700"
   },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#0E172E",
     borderRadius: 20,
     padding: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 4
   },
   cardTitle: {
     fontSize: 18,
-    fontWeight: "700",
-    color: "#102A43",
-    marginBottom: 4
+    fontWeight: "800",
+    color: "#F8FAFC",
+    marginBottom: 6
   },
   cardDesc: {
     fontSize: 12,
-    color: "#64748B",
+    color: "#94A3B8",
     marginBottom: 20,
-    lineHeight: 18
+    lineHeight: 17
   },
   inputGroup: {
     marginBottom: 16
   },
   label: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#334155",
+    fontSize: 11.5,
+    fontWeight: "700",
+    color: "#94A3B8",
     marginBottom: 6
   },
   inputWrap: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: "#E2E8F0",
+    backgroundColor: "#162244",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
     borderRadius: 12,
-    backgroundColor: "#F8FAFC",
-    paddingHorizontal: 12,
-    height: 48
+    paddingHorizontal: 12
   },
   inputIcon: {
     marginRight: 8
   },
   input: {
     flex: 1,
-    fontSize: 14,
-    color: "#1E293B"
+    height: 48,
+    color: "#F8FAFC",
+    fontSize: 13
   },
   eyeBtn: {
-    padding: 6
+    padding: 8
   },
   loginBtn: {
-    backgroundColor: "#102A43",
     borderRadius: 12,
+    overflow: "hidden",
+    marginTop: 8,
+    marginBottom: 16
+  },
+  loginGradient: {
     height: 48,
     alignItems: "center",
-    justifyContent: "center",
-    marginTop: 8,
-    shadowColor: "#102A43",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3
+    justifyContent: "center"
   },
   btnDisabled: {
     opacity: 0.6
@@ -278,31 +294,32 @@ const styles = StyleSheet.create({
   },
   loginBtnText: {
     color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "700"
+    fontSize: 14,
+    fontWeight: "800"
   },
   settingsLink: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 18,
-    gap: 6
+    gap: 6,
+    paddingVertical: 8
   },
   settingsLinkText: {
     fontSize: 12,
     color: "#64748B",
-    fontWeight: "500"
+    fontWeight: "600"
   },
   footerNotice: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     marginTop: 24,
-    gap: 6
+    gap: 6,
+    paddingHorizontal: 20
   },
   footerText: {
     fontSize: 11,
-    color: "#94A3B8",
+    color: "#64748B",
     textAlign: "center"
   }
 });

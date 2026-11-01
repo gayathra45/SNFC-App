@@ -1,6 +1,7 @@
 import { Tabs, useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { TouchableOpacity, StyleSheet, View } from "react-native";
+import { TouchableOpacity, StyleSheet, View, Platform } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 
 export default function TabsLayout() {
   const router = useRouter();
@@ -9,39 +10,44 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerStyle: {
-          backgroundColor: "#102A43",
-          elevation: 4,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.15,
-          shadowRadius: 4
+          backgroundColor: "#070D1E",
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: "rgba(255, 255, 255, 0.08)"
         },
-        headerTintColor: "#FFFFFF",
+        headerTintColor: "#F8FAFC",
         headerTitleStyle: {
           fontWeight: "800",
-          fontSize: 17
+          fontSize: 17,
+          letterSpacing: 0.3
         },
         headerRight: () => (
           <TouchableOpacity
             onPress={() => router.push("/settings")}
             style={styles.settingsHeaderBtn}
+            activeOpacity={0.7}
           >
-            <MaterialCommunityIcons name="cog-outline" size={22} color="#FFFFFF" />
+            <View style={styles.settingsIconCircle}>
+              <MaterialCommunityIcons name="cog-outline" size={20} color="#38BDF8" />
+            </View>
           </TouchableOpacity>
         ),
         tabBarStyle: {
-          backgroundColor: "#FFFFFF",
-          borderTopColor: "#E2E8F0",
+          backgroundColor: "#070D1E",
+          borderTopColor: "rgba(255, 255, 255, 0.08)",
           borderTopWidth: 1,
-          height: 64,
-          paddingBottom: 8,
-          paddingTop: 8
+          height: Platform.OS === "ios" ? 84 : 68,
+          paddingBottom: Platform.OS === "ios" ? 24 : 10,
+          paddingTop: 8,
+          elevation: 10
         },
-        tabBarActiveTintColor: "#102A43",
-        tabBarInactiveTintColor: "#94A3B8",
+        tabBarActiveTintColor: "#38BDF8",
+        tabBarInactiveTintColor: "#64748B",
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: "600"
+          fontWeight: "700",
+          letterSpacing: 0.2
         }
       }}
     >
@@ -50,18 +56,26 @@ export default function TabsLayout() {
         options={{
           title: "Dashboard",
           tabBarLabel: "Dashboard",
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="view-dashboard-outline" size={size} color={String(color)} />
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons
+              name={focused ? "view-dashboard" : "view-dashboard-outline"}
+              size={22}
+              color={String(color)}
+            />
           )
         }}
       />
       <Tabs.Screen
         name="pairing"
         options={{
-          title: "Device Pairing",
+          title: "Terminal Pairing",
           tabBarLabel: "Pairing",
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="cellphone-link" size={size} color={String(color)} />
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons
+              name={focused ? "cellphone-link" : "cellphone-link"}
+              size={22}
+              color={String(color)}
+            />
           )
         }}
       />
@@ -70,13 +84,20 @@ export default function TabsLayout() {
         options={{
           title: "NFC Writer",
           tabBarLabel: "Write Card",
-          tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.writerIconWrap, focused && styles.writerIconWrapActive]}>
-              <MaterialCommunityIcons
-                name="nfc"
-                size={24}
-                color={focused ? "#FFFFFF" : String(color)}
-              />
+          tabBarIcon: ({ focused }) => (
+            <View style={styles.centerWriterBtnWrap}>
+              <LinearGradient
+                colors={focused ? ["#2563EB", "#06B6D4"] : ["#1E293B", "#0F172A"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[styles.centerWriterBtn, focused && styles.centerWriterBtnActive]}
+              >
+                <MaterialCommunityIcons
+                  name="nfc"
+                  size={24}
+                  color={focused ? "#FFFFFF" : "#38BDF8"}
+                />
+              </LinearGradient>
             </View>
           )
         }}
@@ -86,8 +107,12 @@ export default function TabsLayout() {
         options={{
           title: "Audit History",
           tabBarLabel: "History",
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="history" size={size} color={String(color)} />
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons
+              name={focused ? "history" : "history"}
+              size={22}
+              color={String(color)}
+            />
           )
         }}
       />
@@ -97,17 +122,39 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
   settingsHeaderBtn: {
-    marginRight: 16,
-    padding: 6
+    marginRight: 16
   },
-  writerIconWrap: {
+  settingsIconCircle: {
     width: 36,
     height: 36,
     borderRadius: 18,
+    backgroundColor: "rgba(56, 189, 248, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(56, 189, 248, 0.3)",
     alignItems: "center",
     justifyContent: "center"
   },
-  writerIconWrapActive: {
-    backgroundColor: "#102A43"
+  centerWriterBtnWrap: {
+    top: -12,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  centerWriterBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "rgba(56, 189, 248, 0.4)",
+    shadowColor: "#06B6D4",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6
+  },
+  centerWriterBtnActive: {
+    borderColor: "#38BDF8",
+    shadowOpacity: 0.6
   }
 });

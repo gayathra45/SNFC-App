@@ -11,6 +11,8 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
 import {
   getStoredStaff,
   getStoredPairing,
@@ -74,6 +76,9 @@ export default function DashboardScreen() {
     });
 
     const unsubJob = socketService.onTransferJob((job) => {
+      try {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch {}
       setActiveTransfer(job);
     });
 
@@ -119,22 +124,24 @@ export default function DashboardScreen() {
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#102A43"]} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#38BDF8" colors={["#38BDF8"]} />}
     >
-      {/* Branch & Staff Profile Banner */}
+      {/* Branch & Staff Profile Header Card */}
       <View style={styles.profileBanner}>
-        <View>
+        <View style={styles.profileLeft}>
           <View style={styles.branchTag}>
-            <MaterialCommunityIcons name="office-building" size={13} color="#FFFFFF" />
-            <Text style={styles.branchTagText}>{staff?.branch || "Branch Office"} Branch</Text>
+            <MaterialCommunityIcons name="shield-check" size={13} color="#38BDF8" />
+            <Text style={styles.branchTagText}>{staff?.branch || "Galle"} Branch</Text>
           </View>
           <Text style={styles.staffName}>{staff?.name || "Branch Staff Member"}</Text>
           <Text style={styles.staffEmail}>{staff?.email || "Branch Office Portal"}</Text>
         </View>
 
-        <View style={styles.statusPill}>
+        <View style={[styles.statusPill, socketConnected ? styles.statusPillLive : styles.statusPillOffline]}>
           <View style={[styles.statusDot, socketConnected ? styles.dotGreen : styles.dotAmber]} />
-          <Text style={styles.statusText}>{socketConnected ? "Live Connected" : "Reconnecting"}</Text>
+          <Text style={[styles.statusText, socketConnected ? styles.statusTextLive : styles.statusTextOffline]}>
+            {socketConnected ? "Live Gateway" : "Reconnecting"}
+          </Text>
         </View>
       </View>
 
@@ -142,13 +149,13 @@ export default function DashboardScreen() {
       {pendingSyncs.length > 0 && (
         <View style={styles.syncAlertCard}>
           <View style={styles.syncAlertLeft}>
-            <MaterialCommunityIcons name="cloud-alert" size={24} color="#D97706" />
-            <View>
+            <MaterialCommunityIcons name="cloud-alert" size={24} color="#F59E0B" />
+            <View style={{ flex: 1 }}>
               <Text style={styles.syncAlertTitle}>
                 {pendingSyncs.length} Card{pendingSyncs.length > 1 ? "s" : ""} Awaiting Server Sync
               </Text>
               <Text style={styles.syncAlertDesc}>
-                Physical NFC write succeeded while offline.
+                Physical NFC writes completed offline. Sync when ready.
               </Text>
             </View>
           </View>
@@ -168,33 +175,44 @@ export default function DashboardScreen() {
       {activeTransfer ? (
         <View style={styles.transferCard}>
           <View style={styles.transferHeader}>
-            <View style={styles.transferIconBox}>
-              <MaterialCommunityIcons name="nfc-variant" size={24} color="#059669" />
-            </View>
+            <LinearGradient
+              colors={["#059669", "#10B981"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.transferIconBox}
+            >
+              <MaterialCommunityIcons name="nfc" size={24} color="#FFFFFF" />
+            </LinearGradient>
             <View style={styles.transferTitleWrap}>
-              <Text style={styles.transferBadge}>NEW TRANSFER RECEIVED</Text>
+              <View style={styles.badgeRow}>
+                <Text style={styles.transferBadge}>INCOMING TRANSFER</Text>
+                <View style={styles.livePulseDot} />
+              </View>
               <Text style={styles.transferCardId}>{activeTransfer.cardId}</Text>
             </View>
           </View>
 
           <View style={styles.transferDetails}>
-            <Text style={styles.transferDetailRow}>
-              Request: <Text style={styles.detailBold}>{activeTransfer.orderNumber}</Text>
-            </Text>
+            <View style={styles.transferRow}>
+              <Text style={styles.transferLabel}>Order:</Text>
+              <Text style={styles.detailBold}>{activeTransfer.orderNumber}</Text>
+            </View>
             {activeTransfer.policyHolderName ? (
-              <Text style={styles.transferDetailRow}>
-                Policyholder: <Text style={styles.detailBold}>{activeTransfer.policyHolderName}</Text>
-              </Text>
+              <View style={styles.transferRow}>
+                <Text style={styles.transferLabel}>Policyholder:</Text>
+                <Text style={styles.detailBold}>{activeTransfer.policyHolderName}</Text>
+              </View>
             ) : null}
-            <Text style={styles.transferDetailRow}>
-              Payload: <Text style={styles.detailMono}>{maskUrlToken(activeTransfer.cardUrl)}</Text>
-            </Text>
+            <View style={styles.transferRow}>
+              <Text style={styles.transferLabel}>Payload:</Text>
+              <Text style={styles.detailMono}>{maskUrlToken(activeTransfer.cardUrl)}</Text>
+            </View>
           </View>
 
           <TouchableOpacity
             style={styles.writeNowBtn}
+            activeOpacity={0.8}
             onPress={() => {
-              // Navigate to writer tab with this card parameters
               router.push({
                 pathname: "/(tabs)/writer",
                 params: {
@@ -208,8 +226,15 @@ export default function DashboardScreen() {
               });
             }}
           >
-            <MaterialCommunityIcons name="credit-card-wireless" size={20} color="#FFFFFF" />
-            <Text style={styles.writeNowBtnText}>Hold Card to Phone & Write</Text>
+            <LinearGradient
+              colors={["#2563EB", "#06B6D4"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.writeNowGradient}
+            >
+              <MaterialCommunityIcons name="credit-card-wireless" size={20} color="#FFFFFF" />
+              <Text style={styles.writeNowBtnText}>Hold Card to Phone & Write</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       ) : null}
@@ -217,16 +242,16 @@ export default function DashboardScreen() {
       {/* Metrics Row */}
       <View style={styles.metricsGrid}>
         <View style={styles.metricCard}>
-          <View style={[styles.metricIconWrap, { backgroundColor: "#ECFDF5" }]}>
-            <MaterialCommunityIcons name="check-decagram" size={20} color="#059669" />
+          <View style={[styles.metricIconWrap, { backgroundColor: "rgba(16, 185, 129, 0.15)" }]}>
+            <MaterialCommunityIcons name="check-decagram" size={20} color="#10B981" />
           </View>
           <Text style={styles.metricVal}>{verifiedTodayCount}</Text>
           <Text style={styles.metricLbl}>Verified Today</Text>
         </View>
 
         <View style={styles.metricCard}>
-          <View style={[styles.metricIconWrap, { backgroundColor: "#EFF6FF" }]}>
-            <MaterialCommunityIcons name="tray-full" size={20} color="#2563EB" />
+          <View style={[styles.metricIconWrap, { backgroundColor: "rgba(56, 189, 248, 0.15)" }]}>
+            <MaterialCommunityIcons name="tray-full" size={20} color="#38BDF8" />
           </View>
           <Text style={styles.metricVal}>{activeTransfer ? 1 : 0}</Text>
           <Text style={styles.metricLbl}>Pending Queue</Text>
@@ -235,22 +260,23 @@ export default function DashboardScreen() {
         <TouchableOpacity
           style={styles.metricCard}
           onPress={() => router.push("/(tabs)/pairing")}
+          activeOpacity={0.7}
         >
-          <View style={[styles.metricIconWrap, { backgroundColor: pairing ? "#ECFDF5" : "#FEF3C7" }]}>
+          <View style={[styles.metricIconWrap, { backgroundColor: pairing ? "rgba(16, 185, 129, 0.15)" : "rgba(245, 158, 11, 0.15)" }]}>
             <MaterialCommunityIcons
               name={pairing ? "cellphone-check" : "cellphone-link"}
               size={20}
-              color={pairing ? "#059669" : "#D97706"}
+              color={pairing ? "#10B981" : "#F59E0B"}
             />
           </View>
-          <Text style={[styles.metricVal, { fontSize: 13, marginTop: 4 }]}>
+          <Text style={[styles.metricVal, { fontSize: 13, marginTop: 4, color: pairing ? "#10B981" : "#F59E0B" }]}>
             {pairing ? "Paired" : "Unpaired"}
           </Text>
           <Text style={styles.metricLbl}>Portal Pairing</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Quick Actions Card */}
+      {/* Quick Operations Menu */}
       <View style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>Quick Operations</Text>
 
@@ -258,43 +284,46 @@ export default function DashboardScreen() {
           <TouchableOpacity
             style={styles.actionItem}
             onPress={() => router.push("/(tabs)/writer")}
+            activeOpacity={0.7}
           >
-            <View style={[styles.actionIconBox, { backgroundColor: "#EEF2FF" }]}>
-              <MaterialCommunityIcons name="nfc" size={20} color="#4F46E5" />
+            <View style={[styles.actionIconBox, { backgroundColor: "rgba(56, 189, 248, 0.15)" }]}>
+              <MaterialCommunityIcons name="nfc" size={20} color="#38BDF8" />
             </View>
             <View style={styles.actionInfo}>
-              <Text style={styles.actionTitle}>Write NFC Card</Text>
-              <Text style={styles.actionDesc}>Hold physical NDEF card against antenna to write</Text>
+              <Text style={styles.actionTitle}>Write Physical NFC Card</Text>
+              <Text style={styles.actionDesc}>Hold NTAG213/215/216 card against phone antenna</Text>
             </View>
-            <MaterialCommunityIcons name="chevron-right" size={20} color="#94A3B8" />
+            <MaterialCommunityIcons name="chevron-right" size={20} color="#64748B" />
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.actionItem}
             onPress={() => router.push("/(tabs)/pairing")}
+            activeOpacity={0.7}
           >
-            <View style={[styles.actionIconBox, { backgroundColor: "#F0FDF4" }]}>
-              <MaterialCommunityIcons name="cellphone-link" size={20} color="#16A34A" />
+            <View style={[styles.actionIconBox, { backgroundColor: "rgba(16, 185, 129, 0.15)" }]}>
+              <MaterialCommunityIcons name="cellphone-link" size={20} color="#10B981" />
             </View>
             <View style={styles.actionInfo}>
-              <Text style={styles.actionTitle}>Device Pairing</Text>
-              <Text style={styles.actionDesc}>Pair phone with desktop website via 6-digit code</Text>
+              <Text style={styles.actionTitle}>Desktop Terminal Pairing</Text>
+              <Text style={styles.actionDesc}>Sync phone with desktop website via 6-digit PIN</Text>
             </View>
-            <MaterialCommunityIcons name="chevron-right" size={20} color="#94A3B8" />
+            <MaterialCommunityIcons name="chevron-right" size={20} color="#64748B" />
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.actionItem}
             onPress={() => router.push("/(tabs)/history")}
+            activeOpacity={0.7}
           >
-            <View style={[styles.actionIconBox, { backgroundColor: "#F8FAFC" }]}>
-              <MaterialCommunityIcons name="history" size={20} color="#475569" />
+            <View style={[styles.actionIconBox, { backgroundColor: "rgba(148, 163, 184, 0.15)" }]}>
+              <MaterialCommunityIcons name="history" size={20} color="#94A3B8" />
             </View>
             <View style={styles.actionInfo}>
-              <Text style={styles.actionTitle}>Audit History & Diagnostics</Text>
-              <Text style={styles.actionDesc}>Review previous writes and NFC tag read-backs</Text>
+              <Text style={styles.actionTitle}>Audit History & Logs</Text>
+              <Text style={styles.actionDesc}>Review previous writes and tag read-back verifications</Text>
             </View>
-            <MaterialCommunityIcons name="chevron-right" size={20} color="#94A3B8" />
+            <MaterialCommunityIcons name="chevron-right" size={20} color="#64748B" />
           </TouchableOpacity>
         </View>
       </View>
@@ -310,7 +339,7 @@ export default function DashboardScreen() {
                   <MaterialCommunityIcons
                     name={item.status === "Success" ? "check-circle" : "alert-circle"}
                     size={18}
-                    color={item.status === "Success" ? "#059669" : "#DC2626"}
+                    color={item.status === "Success" ? "#10B981" : "#EF4444"}
                   />
                   <View>
                     <Text style={styles.historyCardId}>{item.cardId}</Text>
@@ -320,14 +349,26 @@ export default function DashboardScreen() {
                     </Text>
                   </View>
                 </View>
-                <Text
+
+                <View
                   style={[
                     styles.historyBadge,
-                    item.status === "Success" ? styles.badgeSuccess : styles.badgeFailed
+                    item.status === "Success"
+                      ? styles.historyBadgeSuccess
+                      : styles.historyBadgeFail
                   ]}
                 >
-                  {item.status}
-                </Text>
+                  <Text
+                    style={[
+                      styles.historyBadgeText,
+                      item.status === "Success"
+                        ? styles.historyBadgeTextSuccess
+                        : styles.historyBadgeTextFail
+                    ]}
+                  >
+                    {item.status === "Success" ? "Verified" : "Failed"}
+                  </Text>
+                </View>
               </View>
             ))}
           </View>
@@ -340,55 +381,70 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F1F5F9"
+    backgroundColor: "#070D1E"
   },
   content: {
     padding: 16,
-    paddingBottom: 32
+    paddingBottom: 40
   },
+  // Profile Banner
   profileBanner: {
-    backgroundColor: "#102A43",
-    borderRadius: 18,
-    padding: 18,
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 16
+    alignItems: "center",
+    backgroundColor: "#0E172E",
+    padding: 16,
+    borderRadius: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)"
+  },
+  profileLeft: {
+    flex: 1
   },
   branchTag: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    gap: 4,
+    backgroundColor: "rgba(56, 189, 248, 0.12)",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
     alignSelf: "flex-start",
-    marginBottom: 6,
-    gap: 4
+    marginBottom: 6
   },
   branchTagText: {
-    color: "#FFFFFF",
-    fontSize: 11,
-    fontWeight: "700"
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#38BDF8"
   },
   staffName: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "800"
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#F8FAFC"
   },
   staffEmail: {
-    color: "#94A3B8",
     fontSize: 11,
+    color: "#94A3B8",
     marginTop: 2
   },
   statusPill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.25)",
+    gap: 6,
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-    gap: 6
+    paddingVertical: 5,
+    borderRadius: 12
+  },
+  statusPillLive: {
+    backgroundColor: "rgba(16, 185, 129, 0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.3)"
+  },
+  statusPillOffline: {
+    backgroundColor: "rgba(245, 158, 11, 0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(245, 158, 11, 0.3)"
   },
   statusDot: {
     width: 7,
@@ -402,20 +458,28 @@ const styles = StyleSheet.create({
     backgroundColor: "#F59E0B"
   },
   statusText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontWeight: "600"
+    fontSize: 10.5,
+    fontWeight: "700"
   },
+  statusTextLive: {
+    color: "#10B981"
+  },
+  statusTextOffline: {
+    color: "#F59E0B"
+  },
+
+  // Sync Alert
   syncAlertCard: {
-    backgroundColor: "#FEF3C7",
-    borderColor: "#FCD34D",
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 16,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between"
+    justifyContent: "space-between",
+    backgroundColor: "rgba(245, 158, 11, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(245, 158, 11, 0.3)",
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 16,
+    gap: 12
   },
   syncAlertLeft: {
     flexDirection: "row",
@@ -425,12 +489,13 @@ const styles = StyleSheet.create({
   },
   syncAlertTitle: {
     fontSize: 12,
-    fontWeight: "700",
-    color: "#92400E"
+    fontWeight: "800",
+    color: "#F59E0B"
   },
   syncAlertDesc: {
-    fontSize: 10,
-    color: "#B45309"
+    fontSize: 10.5,
+    color: "#FCD34D",
+    marginTop: 2
   },
   syncAlertBtn: {
     backgroundColor: "#D97706",
@@ -443,17 +508,19 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700"
   },
+
+  // Incoming Transfer Card
   transferCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#0E172E",
     borderRadius: 18,
-    padding: 18,
+    padding: 16,
     marginBottom: 16,
     borderWidth: 1.5,
-    borderColor: "#10B981",
-    shadowColor: "#059669",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
+    borderColor: "#38BDF8",
+    shadowColor: "#06B6D4",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
     elevation: 4
   },
   transferHeader: {
@@ -465,77 +532,95 @@ const styles = StyleSheet.create({
   transferIconBox: {
     width: 44,
     height: 44,
-    borderRadius: 12,
-    backgroundColor: "#ECFDF5",
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center"
   },
   transferTitleWrap: {
     flex: 1
   },
+  badgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6
+  },
   transferBadge: {
     fontSize: 10,
     fontWeight: "800",
-    color: "#059669",
+    color: "#38BDF8",
     letterSpacing: 0.5
   },
+  livePulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#38BDF8"
+  },
   transferCardId: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#102A43"
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#F8FAFC",
+    letterSpacing: 0.3,
+    marginTop: 2
   },
   transferDetails: {
-    backgroundColor: "#F8FAFC",
-    padding: 10,
-    borderRadius: 10,
-    marginBottom: 14,
-    gap: 4
+    backgroundColor: "#162244",
+    borderRadius: 12,
+    padding: 12,
+    gap: 6,
+    marginBottom: 12
   },
-  transferDetailRow: {
+  transferRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center"
+  },
+  transferLabel: {
     fontSize: 11,
-    color: "#64748B"
+    color: "#94A3B8"
   },
   detailBold: {
+    fontSize: 11.5,
     fontWeight: "700",
-    color: "#1E293B"
+    color: "#E2E8F0"
   },
   detailMono: {
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
     fontSize: 10,
-    color: "#334155"
+    color: "#64748B",
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    maxWidth: 200
   },
   writeNowBtn: {
-    backgroundColor: "#059669",
     borderRadius: 12,
-    height: 46,
+    overflow: "hidden"
+  },
+  writeNowGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    shadowColor: "#059669",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2
+    height: 46
   },
   writeNowBtnText: {
     color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "700"
+    fontSize: 13,
+    fontWeight: "800"
   },
+
+  // Metrics Grid
   metricsGrid: {
     flexDirection: "row",
-    gap: 10,
+    gap: 12,
     marginBottom: 16
   },
   metricCard: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
+    backgroundColor: "#0E172E",
+    borderRadius: 16,
     padding: 14,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#E2E8F0"
+    borderColor: "rgba(255, 255, 255, 0.08)"
   },
   metricIconWrap: {
     width: 36,
@@ -543,31 +628,32 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 6
+    marginBottom: 8
   },
   metricVal: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: "#102A43"
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#F8FAFC"
   },
   metricLbl: {
-    fontSize: 10,
-    color: "#64748B",
-    marginTop: 2,
-    fontWeight: "600"
+    fontSize: 10.5,
+    color: "#94A3B8",
+    marginTop: 2
   },
+
+  // Section Card
   sectionCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    backgroundColor: "#0E172E",
+    borderRadius: 18,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#E2E8F0"
+    borderColor: "rgba(255, 255, 255, 0.08)"
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#102A43",
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#F8FAFC",
     marginBottom: 12
   },
   actionList: {
@@ -576,12 +662,16 @@ const styles = StyleSheet.create({
   actionItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 8,
-    gap: 12
+    gap: 12,
+    backgroundColor: "#162244",
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.04)"
   },
   actionIconBox: {
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center"
@@ -590,53 +680,63 @@ const styles = StyleSheet.create({
     flex: 1
   },
   actionTitle: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: "700",
-    color: "#1E293B"
+    color: "#E2E8F0"
   },
   actionDesc: {
-    fontSize: 11,
-    color: "#64748B",
-    marginTop: 1
+    fontSize: 10.5,
+    color: "#94A3B8",
+    marginTop: 2
   },
+
+  // History List
   historyList: {
-    gap: 10
+    gap: 8
   },
   historyRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9"
+    backgroundColor: "#162244",
+    padding: 10,
+    borderRadius: 10
   },
   historyLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10
+    gap: 10,
+    flex: 1
   },
   historyCardId: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#1E293B"
+    color: "#F8FAFC"
   },
   historyTime: {
     fontSize: 10,
-    color: "#94A3B8"
+    color: "#64748B",
+    marginTop: 2
   },
   historyBadge: {
-    fontSize: 10,
-    fontWeight: "700",
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 6
   },
-  badgeSuccess: {
-    backgroundColor: "#ECFDF5",
-    color: "#059669"
+  historyBadgeSuccess: {
+    backgroundColor: "rgba(16, 185, 129, 0.15)"
   },
-  badgeFailed: {
-    backgroundColor: "#FEE2E2",
-    color: "#DC2626"
+  historyBadgeFail: {
+    backgroundColor: "rgba(239, 68, 68, 0.15)"
+  },
+  historyBadgeText: {
+    fontSize: 10,
+    fontWeight: "700"
+  },
+  historyBadgeTextSuccess: {
+    color: "#10B981"
+  },
+  historyBadgeTextFail: {
+    color: "#EF4444"
   }
 });

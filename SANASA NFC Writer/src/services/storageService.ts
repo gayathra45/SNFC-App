@@ -48,11 +48,30 @@ export interface PendingSyncItem {
   writtenAt: string;
 }
 
+export interface WriterSettings {
+  lockTagAfterWrite: boolean;
+  strictReadBackVerify: boolean;
+  overwriteProtection: boolean;
+  hapticFeedback: boolean;
+  soundChimes: boolean;
+  antennaTimeoutSeconds: number;
+}
+
+const DEFAULT_SETTINGS: WriterSettings = {
+  lockTagAfterWrite: false,
+  strictReadBackVerify: true,
+  overwriteProtection: true,
+  hapticFeedback: true,
+  soundChimes: true,
+  antennaTimeoutSeconds: 30
+};
+
 const KEYS = {
   STAFF_SESSION: "sanasa_writer_staff_session",
   PAIRED_SESSION: "sanasa_writer_paired_session",
   WRITE_HISTORY: "sanasa_writer_history",
-  PENDING_SYNCS: "sanasa_writer_pending_syncs"
+  PENDING_SYNCS: "sanasa_writer_pending_syncs",
+  SETTINGS: "sanasa_writer_settings"
 };
 
 // Staff Auth Session
@@ -168,5 +187,26 @@ export function maskUrlToken(url: string): string {
     return url;
   } catch {
     return url.replace(/([a-f0-9]{8})[a-f0-9]{16,}([a-f0-9]{4})/gi, "$1••••••••$2");
+  }
+}
+
+// User Configurable Settings
+export async function getStoredSettings(): Promise<WriterSettings> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.SETTINGS);
+    return raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : DEFAULT_SETTINGS;
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
+
+export async function storeSettings(settings: Partial<WriterSettings>): Promise<WriterSettings> {
+  try {
+    const current = await getStoredSettings();
+    const updated = { ...current, ...settings };
+    await AsyncStorage.setItem(KEYS.SETTINGS, JSON.stringify(updated));
+    return updated;
+  } catch {
+    return DEFAULT_SETTINGS;
   }
 }
