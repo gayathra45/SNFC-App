@@ -4,7 +4,10 @@ import * as Haptics from "expo-haptics";
 import Constants, { ExecutionEnvironment } from "expo-constants";
 
 export const isRunningInExpoGo =
-  Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
+  (Constants as any).appOwnership === "expo" ||
+  !NfcManager ||
+  typeof (NfcManager as any)?.isSupported !== "function";
 
 export interface NfcDiagnosticStatus {
   supported: boolean;

@@ -33,20 +33,25 @@ class NotificationService {
   private listeners: Array<() => void> = [];
 
   constructor() {
-    this.setupAndroidChannels();
+    this.setupAndroidChannels().catch(() => {});
   }
 
   async setupAndroidChannels() {
-    if (Platform.OS === "android") {
-      await Notifications.setNotificationChannelAsync("default", {
-        name: "S NFC Writer Notifications",
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#102A43",
-        enableLights: true,
-        enableVibrate: true,
-        showBadge: true
-      });
+    try {
+      if (Platform.OS === "android") {
+        await Notifications.setNotificationChannelAsync("default", {
+          name: "S NFC Writer Notifications",
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: "#102A43",
+          enableLights: true,
+          enableVibrate: true,
+          showBadge: true
+        });
+      }
+    } catch (err: any) {
+      // In Expo Go on some Android versions, native channel manager can reject safely
+      console.warn("[NotificationService] Setup channel notice:", err?.message || err);
     }
   }
 

@@ -38,6 +38,7 @@ import {
 } from "../../src/services/storageService";
 import { socketService } from "../../src/services/socketService";
 import { notificationService } from "../../src/services/notificationService";
+import SanasaLoadingAnimation from "../../src/components/SanasaLoadingAnimation";
 import {
   t,
   getCurrentLanguage,
@@ -1153,11 +1154,12 @@ export default function NfcWriterScreen() {
       {/* WRITING / SUCCESS / ERROR STATES */}
       {step === "WRITING_TAG" || step === "VERIFYING_READBACK" ? (
         <View style={styles.statusBoxActive}>
-          <ActivityIndicator size="large" color="#2563EB" />
-          <Text style={styles.statusBoxTitle}>
-            {step === "WRITING_TAG" ? t("writingUrl") : t("verifyingReadback")}
-          </Text>
-          <Text style={styles.statusBoxPrompt}>{t("writingPrompt")}</Text>
+          <SanasaLoadingAnimation
+            fullscreen={false}
+            size="medium"
+            message={step === "WRITING_TAG" ? t("writingUrl") : t("verifyingReadback")}
+            subMessage={t("writingPrompt")}
+          />
         </View>
       ) : null}
 
@@ -1506,8 +1508,12 @@ export default function NfcWriterScreen() {
 
               {previewLoading && (
                 <View style={styles.previewLoadingOverlay}>
-                  <ActivityIndicator size="large" color="#2563EB" />
-                  <Text style={styles.previewLoadingText}>Loading driver access view...</Text>
+                  <SanasaLoadingAnimation
+                    fullscreen={false}
+                    size="small"
+                    message="Loading driver access view..."
+                    subMessage="Sanasa Central Token Registry"
+                  />
                 </View>
               )}
 
@@ -1946,13 +1952,17 @@ const styles = StyleSheet.create({
     fontWeight: "bold"
   },
   statusBoxActive: {
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "#0B1E32",
     borderWidth: 1.5,
-    borderColor: "#BFDBFE",
-    borderRadius: 16,
-    padding: 20,
+    borderColor: "rgba(16, 185, 129, 0.35)",
+    borderRadius: 20,
+    padding: 10,
     alignItems: "center",
-    gap: 8
+    shadowColor: "#059669",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 4
   },
   statusBoxTitle: {
     fontSize: 15,
