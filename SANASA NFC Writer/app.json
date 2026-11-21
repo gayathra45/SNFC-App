@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#102A43"
+      "backgroundColor": "#0A1E2E"
     },
     "ios": {
       "supportsTablet": true,
@@ -20,7 +20,7 @@
       "package": "com.sanasa.snfcwriter",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#102A43"
+        "backgroundColor": "#0A1E2E"
       },
       "permissions": [
         "android.permission.NFC",
@@ -35,7 +35,7 @@
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
-          "color": "#102A43",
+          "color": "#0A1E2E",
           "sounds": []
         }
       ]

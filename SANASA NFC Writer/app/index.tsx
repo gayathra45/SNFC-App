@@ -12,8 +12,8 @@ export default function IndexScreen() {
 
     async function checkAuthAndRoute() {
       try {
-        // Small graceful pause to show branded radar animation
-        await new Promise((res) => setTimeout(res, 800));
+        // Smooth pause to let user experience the refined launch animation
+        await new Promise((res) => setTimeout(res, 2000));
         if (!isMounted) return;
 
         const staff = await getStoredStaff();
@@ -41,7 +41,7 @@ export default function IndexScreen() {
       <StatusBar barStyle="light-content" />
       <SanasaLoadingAnimation
         message="Verifying Terminal & Staff Credentials..."
-        subMessage="SANASA Contactless Provisioning System"
+        subMessage="SANASA Contactless Provisioning"
         fullscreen={true}
       />
     </View>
@@ -51,6 +51,6 @@ export default function IndexScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0B1528"
-  }
+    backgroundColor: "#0A1E2E",
+  },
 });
