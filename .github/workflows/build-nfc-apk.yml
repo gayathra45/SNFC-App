@@ -1,0 +1,92 @@
+name: Build Sanasa NFC Writer APK
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+    branches:
+      - main
+    paths:
+      - 'SANASA NFC Writer/**'
+      - '.github/workflows/build-nfc-apk.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 1. Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 2. Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: 'SANASA NFC Writer/package.json'
+
+      - name: 3. Set up Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 17
+
+      - name: 4. Verify Android SDK & Accept Licenses
+        run: |
+          echo "ANDROID_HOME: $ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT: $ANDROID_HOME"
+          yes | sdkmanager --licenses || true
+
+      - name: 5. Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: 6. Install Dependencies
+        working-directory: './SANASA NFC Writer'
+        run: |
+          npm ci --legacy-peer-deps
+
+      - name: 7. Prebuild Android Native Project
+        working-directory: './SANASA NFC Writer'
+        run: |
+          npx expo prebuild --platform android --clean
+
+      - name: 8. Ensure Gradlew Permissions & Build Release APK
+        working-directory: './SANASA NFC Writer/android'
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: 9. Prepare Output Artifact
+        run: |
+          mkdir -p dist
+          APK_PATH=$(find "SANASA NFC Writer/android/app/build/outputs/apk/release" -name "*.apk" | head -n 1)
+          if [ -n "$APK_PATH" ]; then
+            cp "$APK_PATH" dist/Sanasa-NFC-Writer.apk
+            echo "Copied $APK_PATH to dist/Sanasa-NFC-Writer.apk"
+          else
+            echo "Error: APK build output not found!"
+            exit 1
+          fi
+
+      - name: 10. Upload Artifact to GitHub Action Run
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sanasa-NFC-Writer-APK
+          path: dist/Sanasa-NFC-Writer.apk
+          retention-days: 14
+
+      - name: 11. Publish GitHub Release (When Tagged)
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: Sanasa NFC Writer ${{ github.ref_name }}
+          files: dist/Sanasa-NFC-Writer.apk
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
